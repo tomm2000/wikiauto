@@ -1,77 +1,14 @@
-from base64 import encode
 import json
 from helpers import readLines, print_progress
 
 LIMIT = 1000000
 iter = 0
 
-# ----- WIKIDATA -----
-iter = 0
-wikidata_file = 'data/raw/wikidata.json'
-wikidata_lines = readLines(wikidata_file, LIMIT)
-
-# clears the output file
-with open('data/clean/wikidata.json','w') as f:
-  pass
-
-for line in wikidata_lines:
-  if iter >= LIMIT:
-    break
-  iter += 1
-  print_progress(min(LIMIT, len(wikidata_lines)), iter, 'wikidata')
-
-  json_line = json.loads(line)
-
-  clean_line = { "article": "", "data": {} }
-
-  clean_line["article"] = json_line["wikidata_name"]
-
-  for key in json_line["wikidata_details"]:
-    value_list = []
-    for value in json_line["wikidata_details"][key]:
-      value_list.append(value["data"])
-    clean_line["data"][key] = value_list
-
-  with open('data/clean/wikidata.json', 'a', encoding='utf-8') as outfile:
-    text = json.dumps(clean_line, ensure_ascii=False)
-    outfile.write(f"{text}\n")
-
-# ----- INFOBOX -----
-iter = 0
-infobox_file = 'data/raw/infobox.json'
-infobox_lines = readLines(infobox_file, LIMIT)
-
-# clears the output file
-with open('data/clean/infobox.json','w') as f:
-  pass
-
-for line in infobox_lines:
-  if iter >= LIMIT:
-    break
-  iter += 1
-  print_progress(min(LIMIT, len(infobox_lines)), iter, 'infobox')
-
-  json_line = json.loads(line)
-
-  clean_line = { "article": "", "data": {} }
-
-  clean_line["article"] = json_line["title"]
-
-  for key in json_line["infobox"]:
-    clean_line["data"][key] = json_line["infobox"][key]
-
-  with open('data/clean/infobox.json', 'a', encoding='utf-8') as outfile:
-    text = json.dumps(clean_line, ensure_ascii=False)
-    outfile.write(f"{text}\n")
-
 # ----- ARTICLE -----
 iter = 0
 article_file = 'data/raw/train-500k.json'
 article_lines = readLines(article_file, LIMIT)
-
-# clears the output file
-with open('data/clean/article.json','w') as f:
-  pass
+article_data = {} # article: [string]
 
 for line in article_lines:
   if iter >= LIMIT:
@@ -81,12 +18,90 @@ for line in article_lines:
 
   json_line = json.loads(line)
 
-  clean_line = { "article": "", "data": {} }
+  article_data[json_line["doc_title"]] = json_line["text"].split(" ")
 
-  clean_line["article"] = json_line["doc_title"]
+del article_lines
+# ----- TABLE -----
+table_data = {} # article: { types: [string], values: [string] }
 
-  clean_line["data"] = json_line["text"].split(" ")
+#/ --- wikidata ---
+iter = 0
+wikidata_file = 'data/raw/wikidata.json'
+wikidata_lines = readLines(wikidata_file, LIMIT)
 
-  with open('data/clean/article.json', 'a', encoding='utf-8') as outfile:
-    text = json.dumps(clean_line, ensure_ascii=False)
-    outfile.write(f"{text}\n")
+for line in wikidata_lines:
+  if iter >= LIMIT:
+    break
+  iter += 1
+  print_progress(min(LIMIT, len(wikidata_lines)), iter, 'wikidata')
+
+  json_line = json.loads(line)
+
+  article_name = json_line["wikidata_name"]
+
+  if article_name not in article_data:
+    continue
+
+  clean_line = { "types": [], "values": [] }
+  if article_name in table_data:
+    clean_line = table_data[article_name]
+
+  for key in json_line["wikidata_details"]:
+    for value in json_line["wikidata_details"][key]:
+      clean_line["types"].append(key)
+      clean_line["values"].append(value["data"])
+
+  table_data[article_name] = clean_line
+
+del wikidata_lines
+#/ --- infobox ---
+iter = 0
+infobox_file = 'data/raw/infobox.json'
+infobox_lines = readLines(infobox_file, LIMIT)
+
+for line in infobox_lines:
+  if iter >= LIMIT:
+    break
+  iter += 1
+  print_progress(min(LIMIT, len(infobox_lines)), iter, 'infobox')
+
+  json_line = json.loads(line)
+
+  article_name = json_line["title"]
+  if article_name not in article_data:
+    continue
+
+  clean_line = { "types": [], "values": [] }
+  if article_name in table_data:
+    clean_line = table_data[article_name]
+
+  for key in json_line["infobox"]:
+    clean_line["types"].append(key)
+    clean_line["values"].append(json_line["infobox"][key])
+
+del infobox_lines
+# ----- COMBINED -----
+
+# clears the output file
+with open('data/clean/combined_data.json','w') as f:
+  pass
+
+iter = 0
+
+for article_name in article_data:
+  if article_name in table_data:
+    combined_data = {
+      "types": table_data[article_name]["types"],
+      "values": table_data[article_name]["values"],
+      "tokens": article_data[article_name]
+    }
+
+    with open('data/clean/combined_data.json', 'a', encoding='utf-8') as outfile:
+      text = json.dumps(combined_data, ensure_ascii=False)
+      outfile.write(f"\"{article_name}\": {text}\n")
+
+  article_data[article_name] = None
+  table_data[article_name] = None
+
+  print_progress(len(article_data), iter, 'combined')
+  iter += 1

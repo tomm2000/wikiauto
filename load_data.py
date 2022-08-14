@@ -18,16 +18,13 @@ def prepare_line(table, vocab, phrase_size, apply_end_tnk = False, end_token = E
 
   return table
 
-def load_data_evaluate(torch, device, vocab_size = 50000, batch_size = 1, phrase_size = 30, amount = 1000):
-  type_vocab = vocab('data/counts/types.txt', vocab_size)
-  value_vocab = vocab('data/counts/values.txt', vocab_size)
-  token_vocab = vocab('data/counts/tokens.txt', vocab_size)
+def load_data_evaluate(torch, device, type_vocab, value_vocab, batch_size = 1, phrase_size = 30, amount = 1000):
   inputs = []
   batch = []
 
   POSITIONS = [[i for i in range(phrase_size)] for j in range(batch_size)]
 
-  lines = readLines('data/clean/combined_data_eval.json', -1)
+  lines = readLines('data/clean/combined_data_eval.json', amount*batch_size)
   iter = 0
 
   if amount > len(lines) / batch_size:
@@ -68,10 +65,9 @@ def load_data_evaluate(torch, device, vocab_size = 50000, batch_size = 1, phrase
   print("------------------------")
   print("pairs: ", len(inputs))
   print(f"batch size: {batch_size}, phrase size: {phrase_size}")
-  print("input shape: ", inputs[0][0].shape)
-  print("output shape: ", inputs[0][1].shape)
+  print("input shape: ", inputs[0].shape)
 
-  return type_vocab, value_vocab, token_vocab, inputs
+  return inputs
 
 def load_data_training(torch, device, vocab_size = 50000, batch_size = 5, phrase_size = 30, pair_amount = 1000):
   type_vocab = vocab('data/counts/types.txt', vocab_size)

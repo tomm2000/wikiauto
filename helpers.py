@@ -4,7 +4,7 @@ import json
 
 def print_progress(total, iter, name, every=5000):
   if(iter % every == 0 or iter == total):
-    print(f"{name}: {iter}/{total} ({iter/total*100}%)")
+    print(f"{name}: {iter}/{total} ({round(iter/total*100)}%)")
 
 # Read a file and split into lines
 def readLines(filename, size=10):

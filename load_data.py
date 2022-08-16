@@ -63,7 +63,7 @@ def load_data_evaluate(torch, device, type_vocab, value_vocab, batch_size = 1, p
         break
   
   print("------------------------")
-  print("pairs: ", len(inputs))
+  print(f"pairs: {len(inputs)}, total articles: {len(inputs)*batch_size}")
   print(f"batch size: {batch_size}, phrase size: {phrase_size}")
   print("input shape: ", inputs[0].shape)
 

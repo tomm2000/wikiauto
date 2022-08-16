@@ -10,7 +10,7 @@ type_count = {}
 value_count = {}
 token_count = {}
 
-data_file = 'data/clean/combined_data.json'
+data_file = 'data/clean/combined_data_train.json'
 data_lines = readLines(data_file, LIMIT)
 
 for line in data_lines:
@@ -42,7 +42,7 @@ for line in data_lines:
       token_count[token] += 1
 
 
-print(fails)
+print("failed to load: " + str(fails))
 
 
 # clears the output file

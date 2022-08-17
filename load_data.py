@@ -120,7 +120,7 @@ def load_data_training(torch, device, vocab_size = 50000, batch_size = 5, phrase
         break
   
   print("------------------------")
-  print("pairs: ", len(pairs))
+  print(f"pairs: {len(pairs)}, total articles: {len(pairs)*batch_size}")
   print(f"batch size: {batch_size}, phrase size: {phrase_size}")
   print("input shape: ", pairs[0][0].shape)
   print("output shape: ", pairs[0][1].shape)

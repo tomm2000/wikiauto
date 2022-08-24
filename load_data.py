@@ -71,16 +71,16 @@ def load_data_evaluate(torch, device, type_vocab, value_vocab, batch_size=1, phr
     return inputs
 
 
-def load_data_training(torch, device, vocab_size=50000, batch_size=5, input_size=30, output_size = 30, pair_amount=1000):
-  type_vocab = vocab('data/counts/types.txt', vocab_size)
-  value_vocab = vocab('data/counts/values.txt', vocab_size)
-  token_vocab = vocab('data/counts/tokens.txt', vocab_size)
+def load_data_training(torch, device, vocab_size=50000, batch_size=5, input_size=30, output_size = 30, pair_amount=1000, path = "/data"):
+  type_vocab  = vocab(f"{path}/counts/types.txt", vocab_size)
+  value_vocab = vocab(f"{path}/counts/values.txt", vocab_size)
+  token_vocab = vocab(f"{path}/counts/tokens.txt", vocab_size)
   pairs = []
   batch = []
 
   POSITIONS = [[i for i in range(input_size)] for j in range(batch_size)]
 
-  lines = readLines('data/clean/combined_data_train.json', -1)
+  lines = readLines(f"{path}/clean/combined_data_train.json", -1)
   iter = 0
 
   if pair_amount > len(lines) / batch_size:

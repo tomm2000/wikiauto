@@ -3,5 +3,5 @@ output
 # models
 # saved_models
 *.pt
-saved_plots/*
+plots/*
 __pycache__

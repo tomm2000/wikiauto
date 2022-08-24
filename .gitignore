@@ -1,4 +1,7 @@
 data
 output
-models
+# models
+# saved_models
+*.pt
+saved_plots/*
 __pycache__

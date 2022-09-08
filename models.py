@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
-from torch import optim
 import time
 import torch.nn.functional as F
+
+from helpers.helpers import asMsecs
 
 class EncoderRNN(nn.Module):
   def __init__(self, type_vocab, value_vocab, hidden_size, embedding_size, encoder_input_size):
@@ -55,70 +56,40 @@ class AttnCalc(nn.Module):
 
     self.tanhfeatures = nn.Tanh()
 
-    self.attn_times = [0, 0, 0, 0, 0, 0, 0]
-
   def forward(self, hidden, encoder_outputs, coverage):
     # hidden = [1, BATCH, HIDDEN]
     # encoder_outputs = [ENCODER_INPUT_SIZE, HIDDEN]
     # coverage = [1, ENCODER_INPUT_SIZE]
-    self.attn_times[0] += 1
-
-    # --------------------------------
-    start = time.time()
 
     encoder_features = encoder_outputs.view(self.batch_size, self.encoder_input_size, 1, -1) # [BATCH_SIZE, ENCODER_INPUT_SIZE, 1, HIDDEN]
+    
+    # start = time.time()
+    # NOTE: This is the bottleneck
     encoder_features = self.attnConv(encoder_features) #- [BATCH_SIZE, ENCODER_INPUT_SIZE, 1, HIDDEN]
-
-    self.attn_times[1] = time.time() - start
-    # --------------------------------
-    # --------------------------------
-    start = time.time()
+    # print("attnConv: ", asMsecs(time.time() - start))
 
     decoder_features = self.decoderAttnLinear(hidden) # [1, BATCH, HIDDEN]
     decoder_features = decoder_features.view(self.batch_size, 1, 1, -1) #- [BATCH, 1, 1, HIDDEN]
-    
-    self.attn_times[2] += time.time() - start
-    # --------------------------------
-    # --------------------------------
-    start = time.time()
 
     coverage_features = coverage.view(self.batch_size, self.encoder_input_size, 1, -1) # [BATCH_SIZE, ENCODER_INPUT_SIZE, 1, 1]
     coverage_features = self.cvgConv(coverage_features) #- [BATCH_SIZE, ENCODER_INPUT_SIZE, 1, 1]
 
-
-    self.attn_times[3] += time.time() - start
-    # --------------------------------
-    # --------------------------------
-    start = time.time()
     # [1, ENCODER_INPUT_SIZE, 1, HIDDEN] + [BATCH, 1, 1, HIDDEN] + [1, ENCODER_INPUT_SIZE, 1, 1]
     attn_features = encoder_features + decoder_features + coverage_features # [BATCH, ENCODER_INPUT_SIZE, 1, HIDDEN]
     attn_features = attn_features.view(self.batch_size, self.encoder_input_size, -1) # [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
     attn_features = self.tanhfeatures(attn_features) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
 
-    self.attn_times[4] += time.time() - start
-    # --------------------------------
-    # --------------------------------
-    start = time.time()
     temp_v = self.v.unsqueeze(2) #- [BATCH, HIDDEN, 1]
     attn_weights = torch.bmm(attn_features, temp_v) # [BATCH, ENCODER_INPUT_SIZE, 1]
     
-    
-    self.attn_times[5] += time.time() - start
-    # --------------------------------
-    # --------------------------------
-    start = time.time()
     # attn_weights = torch.sum(attn_weights, dim=2) # [BATCH, ENCODER_INPUT_SIZE]
     attn_weights = F.softmax(attn_weights.squeeze(2), dim=1) #- [BATCH, ENCODER_INPUT_SIZE]
-
 
     coverage += attn_weights # [BATCH, ENCODER_INPUT_SIZE]
 
     context_vector = attn_weights.view(self.batch_size, self.encoder_input_size, 1) * encoder_outputs # [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
 
     context_vector = torch.sum(context_vector, dim=1) # [BATCH, HIDDEN]
-
-    self.attn_times[6] += time.time() - start
-    # --------------------------------
 
     return context_vector, attn_weights, coverage
 
@@ -133,7 +104,6 @@ class AttnDecoderRNN(nn.Module):
     self.batch_size = batch_size
     self.encoder_input_size = encoder_input_size
 
-
     self.calcAttn = AttnCalc(hidden_size, encoder_input_size, batch_size).to(device)
 
     self.embedding = nn.Embedding(self.output_vocab_size, embedding_size)
@@ -147,21 +117,12 @@ class AttnDecoderRNN(nn.Module):
 
     self.tanhout = nn.Tanh()
 
-    self.decoder_times = [0, 0, 0, 0, 0, 0]
-
   def forward(self, encoder_outputs, input, hidden, coverage, context_vector=None):
     # --------------------------------
     start = time.time()
 
     embedded = self.embedding(input).view(self.batch_size, -1) # [BATCH, EMBEDDING]
     embedded = self.dropout(embedded) # [BATCH, EMBEDDING]
-
-    self.decoder_times[0] = time.time() - start
-    # --------------------------------
-
-
-    # --------------------------------
-    start = time.time()
 
     # hidden = [1, BATCH, HIDDEN]
     # encoder_outputs = [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
@@ -170,12 +131,6 @@ class AttnDecoderRNN(nn.Module):
     if context_vector is None:
       context_vector, _, _ = self.calcAttn(hidden, encoder_outputs, coverage)
     #context_vector = [BATCH, HIDDEN]
-
-    self.decoder_times[1] = time.time() - start
-    # --------------------------------
-
-    # --------------------------------
-    start = time.time()
     
     # input -> [BATCH, EMBEDDING + HIDDEN]
     new_input = self.newIn(torch.cat((embedded, context_vector), 1)).view(1, self.batch_size, -1) #- [1, BATCH, HIDDEN]
@@ -183,41 +138,20 @@ class AttnDecoderRNN(nn.Module):
     output, hidden = self.gru(new_input, hidden) # [1, BATCH, HIDDEN]
     output = output.squeeze(0) #- [BATCH, HIDDEN]
 
-    self.decoder_times[2] = time.time() - start
-    # --------------------------------
-
-    # --------------------------------
-    start = time.time()
-
     context_vector, attn_weights, coverage = self.calcAttn(hidden, encoder_outputs, coverage)
     #- coverage -> [BATCH, ENCODER_INPUT_SIZE]
     #- context_vector -> [BATCH, HIDDEN]
     #- attn_weights -> [BATCH, ENCODER_INPUT_SIZE]
 
-    self.decoder_times[3] = time.time() - start
-    # --------------------------------
-
-    # --------------------------------
-    start = time.time()
-
     output = torch.cat((output, context_vector), 1) # [BATCH, HIDDEN * 2]
     output = self.preOut(output) # [BATCH, HIDDEN]
     output = self.tanhout(output) #- [BATCH, HIDDEN] NOTE: da chiedere
 
-    self.decoder_times[4] = time.time() - start
-    # --------------------------------
-
     # output = self.dropout2(output) 0.5
-
-    # --------------------------------
-    start = time.time()
 
     output = self.out(output) # [BATCH, OUTPUT_VOCAB_SIZE]
 
     output = F.log_softmax(output, dim=1) #- [BATCH, OUTPUT_VOCAB_SIZE]
-
-    self.decoder_times[5] = time.time() - start
-    # --------------------------------
 
     return output, hidden, context_vector, attn_weights, coverage
 

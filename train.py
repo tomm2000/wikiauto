@@ -17,10 +17,13 @@ import random
 import time
 from datetime import datetime
 from colorama import Fore
+import os
 
 # ----============= SETUP =============----
+# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
 ENCODER_INPUT_SIZE = 40 # dimensione dell'input dell'encoder (numero di triple tipo-valore-posizione in input)
@@ -63,7 +66,6 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   encoder_optimizer.zero_grad()
   decoder_optimizer.zero_grad()
 
-  input_length = input_tensor.size(2) # == PHRASE_SIZE
   target_length = target_tensor.size(1)
 
   print(Fore.GREEN + f"Initialization: {asMsecs(time.time() - start)}" + Fore.RESET) #-----------------------------------------------
@@ -103,22 +105,16 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
 
     loss += criterion(decoder_output, current_target)
 
+    # torch.cuda.synchronize()
+
     cycle_time = time.time() - start_cycle
     color = Fore.WHITE if cycle_time < 0.2 else Fore.RED
     
     print(color + f"iter time {di}: {asMsecs(cycle_time)}" + Fore.RESET)
 
-    times = ""
-
-    for i in range(len(decoder.decoder_times)):
-      color2 = Fore.WHITE if decoder.decoder_times[i] < 0.2 else Fore.RED
-      times += color2 + f"[{i}]: {asMsecs(decoder.decoder_times[i])} | " + Fore.RESET
-
-    print(f"decoder times: {times}")
-
     print("------------------")
 
-  print(Fore.GREEN + f"Decoder: {asMsecs(time.time() - start)}") #-----------------------------------------------
+  print(Fore.GREEN + f"Decoder: {asMsecs(time.time() - start)}" + Fore.RESET) #-----------------------------------------------
   start = time.time() #-----------------------------------------------
 
   # raise Exception("stop")
@@ -131,7 +127,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   encoder_optimizer.step()
   decoder_optimizer.step()
 
-  print(Fore.GREEN + f"Backward: {asMsecs(time.time() - start)}") #-----------------------------------------------
+  print(Fore.GREEN + f"Backward: {asMsecs(time.time() - start)}" + Fore.RESET) #-----------------------------------------------
 
 
   return loss.item()
@@ -163,7 +159,9 @@ def trainEpoch(encoder, decoder, inputs, print_times=10, plot_times=10000, learn
 
     loss = train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
 
+    print(Fore.CYAN + f"==========================================")
     print(f"iter {iter} time: {timeSince(start_time, 1)}")
+    print(f"==========================================" + Fore.RESET)
 
     print_loss_total += loss
     plot_loss_total += loss
@@ -285,3 +283,6 @@ for epoch in range(1, EPOCHS+1):
 
 #- togliere dropout nel test piccolo
 #- se funziona tutto attention weights padding
+
+# NOTE: da chiedere
+# detach

@@ -21,10 +21,12 @@ def readLines(filename, size=10):
         break
     return l
 
+
 def asMinutes(s):
   m = math.floor(s / 60)
   s -= m * 60
   return '%dm %ds' % (m, s)
+
 
 def timeSince(since, percent):
   now = time.time()
@@ -33,11 +35,34 @@ def timeSince(since, percent):
   rs = es - s
   return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
+def asMsecs(s):
+  sec = math.floor(s)
+  msec = s * 1000
+  msec -= sec * 1000
+  return '%ds %dms' % (sec, msec)
+
+
 def showPlot(points):
   plt.figure()
   fig, ax = plt.subplots()
   # this locator puts ticks at regular intervals
   loc = ticker.MultipleLocator(base=0.01)
   ax.yaxis.set_major_locator(loc)
+  # ax.set_facecolor('pink')
   plt.plot(points)
   plt.show()
+
+def getPlot(points):
+  plt.figure()
+  fig, ax = plt.subplots()
+  # this locator puts ticks at regular intervals
+  loc = ticker.MultipleLocator(base=0.01)
+  ax.yaxis.set_major_locator(loc)
+  # ax.set_facecolor('pink')
+  plt.plot(points)
+  return fig
+
+def calc_avg_loss(prec_loss, curr_loss, alpha=0.95):
+  if prec_loss == 0:
+    return curr_loss
+  return alpha * prec_loss + (1.0 - alpha) * curr_loss

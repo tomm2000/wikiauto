@@ -1,6 +1,6 @@
 import random
 import json
-from helpers import readLines
+from helpers.helpers import readLines
 
 UNKNOWN_TOKEN = '<UNK>'
 PADDING_TOKEN = '<PAD>'

@@ -1,8 +1,8 @@
 from __future__ import unicode_literals, print_function, division
 from math import ceil, floor
 from re import T
-from vocab import vocab, END_TOKEN, START_TOKEN, PADDING_TOKEN, UNKNOWN_TOKEN
-from helpers import print_progress, readLines
+from helpers.vocab import vocab, END_TOKEN, START_TOKEN, PADDING_TOKEN, UNKNOWN_TOKEN
+from helpers.helpers import print_progress, readLines
 import json
 
 def prepare_line(table, vocab, phrase_size, apply_end_tnk=False, end_token=END_TOKEN):

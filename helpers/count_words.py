@@ -1,6 +1,6 @@
 from base64 import encode
 import json
-from helpers import readLines, print_progress
+from helpers.helpers import readLines, print_progress
 
 LIMIT = 1000000
 iter = 0

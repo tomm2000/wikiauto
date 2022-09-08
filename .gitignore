@@ -6,3 +6,4 @@ output
 plots/*
 __pycache__
 *.bkp
+.vscode

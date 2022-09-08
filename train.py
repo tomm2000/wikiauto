@@ -21,14 +21,15 @@ import os
 
 # ----============= SETUP =============----
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+# torch.set_flush_denormal(True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-ENCODER_INPUT_SIZE = 40 # dimensione dell'input dell'encoder (numero di triple tipo-valore-posizione in input)
-DECODER_OUTPUT_SIZE = 40 # dimensione dell'output del decoder (lunghezza della frase in output)
-BATCH_SIZE = 3
+ENCODER_INPUT_SIZE = 50 # dimensione dell'input dell'encoder (numero di triple tipo-valore-posizione in input)
+DECODER_OUTPUT_SIZE = 100 # dimensione dell'output del decoder (lunghezza della frase in output)
+BATCH_SIZE = 8
 HIDDEN_SIZE = 256
 EMBEDDING_SIZE = 128
 teacher_forcing_ratio = 0.5
@@ -40,7 +41,7 @@ print(Fore.MAGENTA + "\n---- Loading data ----" + Fore.RESET)
 type_vocab, value_vocab, token_vocab, pairs = load_data_training(
   torch=torch,
   device=device,
-  vocab_size=5000,
+  vocab_size=50000,
   batch_size=BATCH_SIZE,
   input_size=ENCODER_INPUT_SIZE,
   output_size=DECODER_OUTPUT_SIZE,
@@ -60,7 +61,10 @@ train_pairs, test_pairs = split_data(pairs)
 
 def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
 
-  start = time.time() #-----------------------------------------------
+  startstart = time.time()
+  
+  logger = timelog("train")
+
   encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
 
   encoder_optimizer.zero_grad()
@@ -68,8 +72,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
 
   target_length = target_tensor.size(1)
 
-  print(Fore.GREEN + f"Initialization: {asMsecs(time.time() - start)}" + Fore.RESET) #-----------------------------------------------
-  start = time.time() #-----------------------------------------------
+  logger.log_end("Initialization", Fore.GREEN, Fore.RESET)
 
   loss = 0
 
@@ -81,8 +84,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   coverage = torch.zeros(BATCH_SIZE, ENCODER_INPUT_SIZE, device=device)
   context_vector = None
 
-  print(Fore.GREEN + f"Encoder: {asMsecs(time.time() - start)}" + Fore.RESET) #-----------------------------------------------
-  start = time.time() #-----------------------------------------------
+  logger.log_end("Encoder", Fore.GREEN, Fore.RESET)
 
   for di in range(target_length):
     start_cycle = time.time()
@@ -105,30 +107,17 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
 
     loss += criterion(decoder_output, current_target)
 
-    # torch.cuda.synchronize()
-
-    cycle_time = time.time() - start_cycle
-    color = Fore.WHITE if cycle_time < 0.2 else Fore.RED
-    
-    print(color + f"iter time {di}: {asMsecs(cycle_time)}" + Fore.RESET)
-
-    print("------------------")
-
-  print(Fore.GREEN + f"Decoder: {asMsecs(time.time() - start)}" + Fore.RESET) #-----------------------------------------------
-  start = time.time() #-----------------------------------------------
-
-  # raise Exception("stop")
-  
-  start = time.time()
+  logger.log_end("Decoder", Fore.GREEN, Fore.RESET)
 
   loss = loss / target_length
   loss.backward()
+  logger.log_end("Backward", Fore.GREEN, Fore.RESET)
 
   encoder_optimizer.step()
   decoder_optimizer.step()
 
-  print(Fore.GREEN + f"Backward: {asMsecs(time.time() - start)}" + Fore.RESET) #-----------------------------------------------
-
+  logger.log_end("Step", Fore.GREEN, Fore.RESET)
+  print(Fore.RED + f"Total: {asMsecs(time.time() - startstart)}" + Fore.RESET) #-----------------------------------------------
 
   return loss.item()
 
@@ -146,7 +135,9 @@ def trainEpoch(encoder, decoder, inputs, print_times=10, plot_times=10000, learn
   decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
   criterion = nn.NLLLoss()
 
+
   for iter in range(1, epoch_len+1):
+    start_time = time.time()
     # ogni elemento di inputs è una tupla (input, target)
     # ogni valore input è un tensore di dimensione [3, batch, encoder_input_size], deve 3 rappresenta (tipo, valore, posizione)
     # ogni valore target è un tensore di dimensione [batch, decoder_output_size]
@@ -155,26 +146,26 @@ def trainEpoch(encoder, decoder, inputs, print_times=10, plot_times=10000, learn
     input_tensor = training_pair[0]
     target_tensor = training_pair[1]
 
-    start_time = time.time()
-
     loss = train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
 
-    print(Fore.CYAN + f"==========================================")
-    print(f"iter {iter} time: {timeSince(start_time, 1)}")
-    print(f"==========================================" + Fore.RESET)
 
     print_loss_total += loss
     plot_loss_total += loss
 
-    if iter % print_every == 0:
-      print_loss_avg = print_loss_total / print_every
-      print_loss_total = 0
-      print(f"{timeSince(start, iter / epoch_len+1)} ({iter} {iter / (epoch_len+1) * 100:.2f}%) {print_loss_avg:.4f}")
+    # if iter % print_every == 0:
+    # print(Fore.CYAN + f"==========================================")
+    print(Fore.CYAN + f"total iter time: {asMsecs(time.time() - start_time)}")
+    print(f"==========================================" + Fore.RESET)
+      # start_time = time.time()
 
-    if iter % print_every == 0:
-      plot_loss_avg = plot_loss_total / plot_every
-      plot_losses.append(plot_loss_avg)
-      plot_loss_total = 0
+    #   print_loss_avg = print_loss_total / print_every
+    #   print_loss_total = 0
+    #   print(f"{timeSince(start, iter / epoch_len+1)} ({iter} {iter / (epoch_len+1) * 100:.2f}%) {print_loss_avg:.4f}")
+
+    # if iter % print_every == 0:
+    #   plot_loss_avg = plot_loss_total / plot_every
+    #   plot_losses.append(plot_loss_avg)
+    #   plot_loss_total = 0
 
   showPlot(plot_losses)
   return getPlot(plot_losses)

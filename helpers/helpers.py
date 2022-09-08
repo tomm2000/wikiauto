@@ -66,3 +66,32 @@ def calc_avg_loss(prec_loss, curr_loss, alpha=0.95):
   if prec_loss == 0:
     return curr_loss
   return alpha * prec_loss + (1.0 - alpha) * curr_loss
+
+
+class timelog:
+  def __init__(self, name):
+    self.name = name
+    self.start = time.time()
+
+  def log(self, msg, pre = "", post = ""):
+    print(f"{pre}{self.name}: {msg} ({asMsecs(time.time() - self.start)}){post}")
+
+  def log_end(self, msg, pre = "", post = ""):
+    self.log(msg, pre, post)
+    self.start = time.time()
+
+class stackTimelog:
+  def __init__(self, name):
+    self.name = name
+    self.start = time.time()
+    self.text = f"{self.name}: "
+
+  def log(self, msg = ""):
+    self.text += f" {msg} ({asMsecs(time.time() - self.start)}) |"
+
+  def log_end(self, msg = ""):
+    self.log(msg)
+    self.start = time.time()
+
+  def flush(self):
+    print(self.text)

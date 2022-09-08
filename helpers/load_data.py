@@ -1,6 +1,5 @@
 from __future__ import unicode_literals, print_function, division
 from math import ceil, floor
-from re import T
 from helpers.vocab import vocab, END_TOKEN, START_TOKEN, PADDING_TOKEN, UNKNOWN_TOKEN
 from helpers.helpers import print_progress, readLines
 import json

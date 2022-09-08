@@ -1,4 +1,3 @@
-from base64 import encode
 import json
 from helpers.helpers import readLines, print_progress
 

@@ -1,5 +1,3 @@
-import random
-import json
 from helpers.helpers import readLines
 
 UNKNOWN_TOKEN = '<UNK>'

@@ -1,4 +1,3 @@
-from ctypes import sizeof
 import json
 from helpers.helpers import readLines, print_progress
 

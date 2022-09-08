@@ -18,20 +18,20 @@ import time
 from datetime import datetime
 from colorama import Fore
 
+# ----============= SETUP =============----
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# print(f"device: {device}")
-
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
-
-base_path = "data"
-# device = "cpu"
 
 ENCODER_INPUT_SIZE = 40 # dimensione dell'input dell'encoder (numero di triple tipo-valore-posizione in input)
 DECODER_OUTPUT_SIZE = 40 # dimensione dell'output del decoder (lunghezza della frase in output)
 BATCH_SIZE = 3
 HIDDEN_SIZE = 256
 EMBEDDING_SIZE = 128
+teacher_forcing_ratio = 0.5
+base_path = "data"
 
+# ----============= DATA LOADING =============----
 print(Fore.MAGENTA + "\n---- Loading data ----" + Fore.RESET)
 
 type_vocab, value_vocab, token_vocab, pairs = load_data_training(
@@ -53,7 +53,7 @@ def split_data(pairs, train_size=0.8):
 
 train_pairs, test_pairs = split_data(pairs)
 
-teacher_forcing_ratio = 0.5
+# ----============= TRAINING FUNCTIONS =============----
 
 def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
 
@@ -181,7 +181,7 @@ def trainEpoch(encoder, decoder, inputs, print_times=10, plot_times=10000, learn
   showPlot(plot_losses)
   return getPlot(plot_losses)
 
-
+# ----============= MODEL LOADING =============----
 print(Fore.MAGENTA + "\n---- Loading models ----" + Fore.RESET)
 
 encoder = EncoderRNN(
@@ -201,8 +201,7 @@ decoder = AttnDecoderRNN(
   device=device,
 ).to(device)
 
-
-
+# ----============= TRAINING =============----
 print(Fore.MAGENTA + "\n---- Training models ----\n" + Fore.RESET)
 
 EPOCHS = 1

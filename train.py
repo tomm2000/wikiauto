@@ -27,9 +27,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-ENCODER_INPUT_SIZE = 50 # dimensione dell'input dell'encoder (numero di triple tipo-valore-posizione in input)
-DECODER_OUTPUT_SIZE = 100 # dimensione dell'output del decoder (lunghezza della frase in output)
-BATCH_SIZE = 8
+ENCODER_INPUT_SIZE = 20 # dimensione dell'input dell'encoder (numero di triple tipo-valore-posizione in input)
+DECODER_OUTPUT_SIZE = 40 # dimensione dell'output del decoder (lunghezza della frase in output)
+BATCH_SIZE = 10
 HIDDEN_SIZE = 256
 EMBEDDING_SIZE = 128
 teacher_forcing_ratio = 0.5
@@ -41,11 +41,11 @@ print(Fore.MAGENTA + "\n---- Loading data ----" + Fore.RESET)
 type_vocab, value_vocab, token_vocab, pairs = load_data_training(
   torch=torch,
   device=device,
-  vocab_size=50000,
+  vocab_size=1000,
   batch_size=BATCH_SIZE,
   input_size=ENCODER_INPUT_SIZE,
   output_size=DECODER_OUTPUT_SIZE,
-  pair_amount=100,
+  pair_amount=50,
   path=base_path
 )
 
@@ -60,11 +60,6 @@ train_pairs, test_pairs = split_data(pairs)
 # ----============= TRAINING FUNCTIONS =============----
 
 def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
-
-  startstart = time.time()
-  
-  logger = timelog("train")
-
   encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
 
   encoder_optimizer.zero_grad()
@@ -72,9 +67,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
 
   target_length = target_tensor.size(1)
 
-  logger.log_end("Initialization", Fore.GREEN, Fore.RESET)
-
-  loss = 0
+  loss = torch.zeros(1, device=device)
 
   encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
 
@@ -84,46 +77,42 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   coverage = torch.zeros(BATCH_SIZE, ENCODER_INPUT_SIZE, device=device)
   context_vector = None
 
-  logger.log_end("Encoder", Fore.GREEN, Fore.RESET)
-
   for di in range(target_length):
-    start_cycle = time.time()
-
     use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
-    # use_teacher_forcing = True
+    use_teacher_forcing = True
 
     current_target = target_tensor[:, di] # [BATCH]
 
-    if use_teacher_forcing:
-      # Teacher forcing: Feed the target as the next input
+    if use_teacher_forcing: # Teacher forcing: Feed the target as the next input
       decoder_output, decoder_hidden, context_vector, attn_weights, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
       decoder_input = current_target
         
-    else:
-      # Without teacher forcing: use its own predictions as the next input
+    else: # Without teacher forcing: use its own predictions as the next input
       decoder_output, decoder_hidden, context_vector, attn_weights, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
       topv, topi = decoder_output.topk(1)
       decoder_input = topi.squeeze()
 
-    loss += criterion(decoder_output, current_target)
+    newloss = criterion(decoder_output, current_target)
 
-  logger.log_end("Decoder", Fore.GREEN, Fore.RESET)
+    loss += newloss
+
+  # print(f"loss 1: {loss}")
 
   loss = loss / target_length
+  # print(f"loss 2: {loss}")
   loss.backward()
-  logger.log_end("Backward", Fore.GREEN, Fore.RESET)
 
   encoder_optimizer.step()
   decoder_optimizer.step()
 
-  logger.log_end("Step", Fore.GREEN, Fore.RESET)
-  print(Fore.RED + f"Total: {asMsecs(time.time() - startstart)}" + Fore.RESET) #-----------------------------------------------
+  # print("loss 3: ", loss)
 
   return loss.item()
 
 
 def trainEpoch(encoder, decoder, inputs, print_times=10, plot_times=10000, learning_rate=5e-5):
-  start = time.time()
+  epoch_start = time.time()
+
   plot_losses = []
   print_loss_total = 0  # Reset every print_every
   plot_loss_total = 0  # Reset every plot_every
@@ -135,9 +124,9 @@ def trainEpoch(encoder, decoder, inputs, print_times=10, plot_times=10000, learn
   decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
   criterion = nn.NLLLoss()
 
+  avg_time = time.time()
 
   for iter in range(1, epoch_len+1):
-    start_time = time.time()
     # ogni elemento di inputs è una tupla (input, target)
     # ogni valore input è un tensore di dimensione [3, batch, encoder_input_size], deve 3 rappresenta (tipo, valore, posizione)
     # ogni valore target è un tensore di dimensione [batch, decoder_output_size]
@@ -148,27 +137,88 @@ def trainEpoch(encoder, decoder, inputs, print_times=10, plot_times=10000, learn
 
     loss = train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
 
-
     print_loss_total += loss
     plot_loss_total += loss
 
-    # if iter % print_every == 0:
-    # print(Fore.CYAN + f"==========================================")
-    print(Fore.CYAN + f"total iter time: {asMsecs(time.time() - start_time)}")
-    print(f"==========================================" + Fore.RESET)
-      # start_time = time.time()
+    if iter % print_every == 0:
+      print_loss_avg = print_loss_total / print_every
 
-    #   print_loss_avg = print_loss_total / print_every
-    #   print_loss_total = 0
-    #   print(f"{timeSince(start, iter / epoch_len+1)} ({iter} {iter / (epoch_len+1) * 100:.2f}%) {print_loss_avg:.4f}")
+      average = asMsecs((time.time() - avg_time) / print_every)
+      since = timeSince(epoch_start, iter / (epoch_len+1))
+      info = f"({iter} / {iter / epoch_len * 100:.2f}%)"
+      loss = f"{print_loss_avg:.4f}"
 
-    # if iter % print_every == 0:
-    #   plot_loss_avg = plot_loss_total / plot_every
-    #   plot_losses.append(plot_loss_avg)
-    #   plot_loss_total = 0
+      print("Average time: " + average + " | " + since + " | " + info + " Loss: " + loss)
 
-  showPlot(plot_losses)
-  return getPlot(plot_losses)
+      avg_time = time.time()
+      print_loss_total = 0
+
+
+    if iter % print_every == 0:
+      plot_loss_avg = plot_loss_total / plot_every
+      plot_losses.append(plot_loss_avg)
+      plot_loss_total = 0
+
+  return plot_losses
+
+
+def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
+
+  encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
+  target_length = target_tensor.size(1)
+
+  loss = torch.zeros(1, device=device)
+
+  encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
+
+  decoder_input = torch.tensor([type_vocab.getID(START_TOKEN) for _ in range(BATCH_SIZE)], device=device)
+  decoder_hidden = encoder_hidden
+
+  coverage = torch.zeros(BATCH_SIZE, ENCODER_INPUT_SIZE, device=device)
+  context_vector = None
+  
+  decoder_outputs = []
+
+  for di in range(target_length):
+    decoder_output, decoder_hidden, context_vector, attn_weights, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
+    topv, topi = decoder_output.topk(1)
+    decoder_outputs.append(topi.squeeze())
+    decoder_input = topi.squeeze()
+
+    newloss = criterion(decoder_output,  target_tensor[:, di])
+    loss += newloss
+
+  loss = (loss / target_length).item()
+  return loss, decoder_outputs
+
+
+def evaluateEpoch(encoder, decoder, inputs):
+  epoch_len = len(inputs)
+
+  criterion = nn.NLLLoss()
+
+  sample_start = None
+  sample_end = None
+  loss = 0
+
+  for iter in range(1, epoch_len+1):
+    training_pair = inputs[iter-1]
+    input_tensor = training_pair[0]
+    target_tensor = training_pair[1]
+
+    loss, decoder_outputs = evaluate(input_tensor, target_tensor, encoder, decoder, criterion)
+    loss += loss
+
+    if iter == 1:
+      sample_start = (loss, decoder_outputs, target_tensor)
+
+    if iter == epoch_len:
+      sample_end = (loss, decoder_outputs, target_tensor)
+
+  loss = loss / epoch_len
+
+  return loss, sample_start, sample_end
+
 
 # ----============= MODEL LOADING =============----
 print(Fore.MAGENTA + "\n---- Loading models ----" + Fore.RESET)
@@ -197,75 +247,77 @@ EPOCHS = 1
 FLAT = 3
 
 PLOT_TIMES = 1000
-PRINT_TIMES = 5
-BATCH_PRINT_SIZE = 5
-SAVE_MODEL_EVERY = 1
-SAVE_PLOT_EVERY = 1
+PRINT_TIMES = 10
+BATCH_PRINT_SIZE = 3
+
+prec_loss = 0
 
 start_time = str(datetime.now().strftime("%d.%m_%H.%M"))
 output_file = f"{base_path}/output/out-{start_time}.txt"
 
 # with open(output_file, 'w', encoding='utf-8') as outfile: pass
 
-prec_loss = 0
-
 def saveModel(encoder, decoder, epoch):
-  torch.save(encoder, f"{base_path}/models/encoder_{start_time}-ep_{epoch}-iters.pt")
-  torch.save(decoder, f"{base_path}/models/decoder_{start_time}-ep_{epoch}-iters.pt")
+  torch.save(encoder, f"{base_path}/models/encoder_{start_time}-ep_{epoch}.pt")
+  torch.save(decoder, f"{base_path}/models/decoder_{start_time}-ep_{epoch}.pt")
 
 def savePlot(plot, epoch):
-  plot.savefig(f"{base_path}/plots/plot_{start_time}-ep_{epoch}-iters.png")
+  plot.savefig(f"{base_path}/plots/plot_{start_time}-ep_{epoch}.png")
 
-def saveOutput(output, target, epoch):
+def saveOutput(sample, epoch, extra = ""): #sample = (loss, decoder_outputs, target_tensor)
+  loss = sample[0]
+  decoder_outputs = torch.stack(sample[1]).transpose(0, 1) # [BATCH, SEQ_LEN]
+  target_tensor = sample[2] # [BATCH, SEQ_LEN]
+
   with open(output_file, 'a', encoding='utf-8') as outfile:
-    for i in range(min(BATCH_PRINT_SIZE, len(output))):
+    outfile.write(f"\n================ Epoch: {epoch} | Loss: {loss} | {extra} ================")
+
+    for i in range(min(BATCH_PRINT_SIZE, len(decoder_outputs))):
       outfile.write("----------------------\n")
       predict = ""
       target = ""
-      for word in output[i]:
-        predict += str(word) + " "
+
+      for idx in decoder_outputs[i]:
+        predict += token_vocab.getWord(idx.item()) + " "
+      for idx in target_tensor[i]:
+        target += token_vocab.getWord(idx.item()) + " "
       outfile.write(predict + "\n")
-      # outfile.write("-.... ↑|predict|↑ ....... ↓|target|↓ ....-\n")
-      # for word in pairs[0][1][i]:
-      #   target += token_vocab.getWord(word.item()) + " "
-      # outfile.write(target + "\n")
+      outfile.write("-.... ↑|predict|↑ ....... ↓|target|↓ ....-\n")
+      outfile.write(target + "\n")
     
 
 for epoch in range(1, EPOCHS+1):
-  print(f"----========= EPOCH {epoch}/{EPOCHS}=========----")
+  print(Fore.GREEN + f"----========= EPOCH {epoch}/{EPOCHS}=========----" + Fore.RESET)
   epoch_start = time.time()
   
   random.shuffle(pairs)
-  plot = trainEpoch(encoder, decoder, train_pairs, print_times=PRINT_TIMES, plot_times=PLOT_TIMES)
-  print(f"------------------- Trained -------------------")
-  # curr_loss, sample_start, sample_end = evaluateEpoch(encoder, decoder, test_pairs)
+  plot_losses = trainEpoch(encoder, decoder, train_pairs, print_times=PRINT_TIMES, plot_times=PLOT_TIMES)
+  print(Fore.GREEN + f"------------------- Trained -------------------" + Fore.RESET)
+  curr_loss, sample_start, sample_end = evaluateEpoch(encoder, decoder, test_pairs)
 
-  # temp_loss = calc_avg_loss(prec_loss, curr_loss)
-  # if(prec_loss < temp_loss):
-  #   FLAT -= 1
-  # else:
-  #   FLAT = 3
+  temp_loss = calc_avg_loss(prec_loss, curr_loss)
+  if(prec_loss < temp_loss):
+    FLAT -= 1
+  else:
+    FLAT = 3
   
-  # if(FLAT == 0):
-  #   break
+  if(FLAT == 0):
+    break
   
-  # prec_loss = temp_loss
+  prec_loss = temp_loss
 
-  print(f"------------------- Finished epoch -------------------")
-  print(f"time: {int((time.time() - epoch_start)/60)}min")
-  # print(f"loss: {curr_loss}, avg loss: {temp_loss}, flat: {FLAT}")
+  print(Fore.GREEN + f"------------------- Finished epoch -------------------")
+  print(f"time: {asMinutes(time.time() - epoch_start)}")
+  print(f"loss: {curr_loss}, avg loss: {temp_loss}, flat: {FLAT}" + Fore.RESET)
 
-  # saveOutput(sample_start[0], sample_start[1], epoch)
-  # saveOutput(sample_end[0], sample_end[1], epoch)
+  saveOutput(sample_start, epoch, "start")
+  saveOutput(sample_end, epoch, "end")
 
-  # if epoch % SAVE_PLOT_EVERY == 0:
-  #   savePlot(plot, epoch, epoch)
+  plot = getPlot(plot_losses)
+  savePlot(plot, epoch)
 
-  # if epoch % SAVE_MODEL_EVERY == 0:
-  #   saveModel(encoder, decoder, epoch, epoch)
+  saveModel(encoder, decoder, epoch)
 
-
-  
 
 
 #  TODO:

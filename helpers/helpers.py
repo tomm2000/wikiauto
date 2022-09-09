@@ -1,3 +1,4 @@
+from cmath import isnan
 import time
 import math
 import matplotlib.pyplot as plt
@@ -42,21 +43,33 @@ def asMsecs(s):
   return '%ds %dms' % (sec, msec)
 
 
-def showPlot(points):
+def showPlot(points, ticks = None):
   plt.figure()
   fig, ax = plt.subplots()
   # this locator puts ticks at regular intervals
-  loc = ticker.MultipleLocator(base=0.01)
+  if ticks == None:
+    ticks = (max(points) - min(points)) / 10
+  
+  if isnan(ticks):
+    ticks = 0.5
+
+  loc = ticker.MultipleLocator(base=ticks)
   ax.yaxis.set_major_locator(loc)
   # ax.set_facecolor('pink')
   plt.plot(points)
   plt.show()
 
-def getPlot(points):
+def getPlot(points, ticks = None):
   plt.figure()
   fig, ax = plt.subplots()
   # this locator puts ticks at regular intervals
-  loc = ticker.MultipleLocator(base=0.01)
+  if ticks == None:
+    ticks = (max(points) - min(points)) / 10
+
+  if isnan(ticks):
+    ticks = 0.5
+
+  loc = ticker.MultipleLocator(base=ticks)
   ax.yaxis.set_major_locator(loc)
   # ax.set_facecolor('pink')
   plt.plot(points)

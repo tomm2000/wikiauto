@@ -70,7 +70,7 @@ def load_data_evaluate(torch, device, type_vocab, value_vocab, batch_size=1, phr
     return inputs
 
 
-def load_data_training(torch, device, vocab_size=50000, batch_size=5, input_size=30, output_size = 30, pair_amount=1000, path = "/data"):
+def load_data_training(torch, device, vocab_size=50000, batch_size=5, input_size=30, output_size = 30, pair_amount=1000, path = "data"):
   type_vocab  = vocab(f"{path}/counts/types.txt", vocab_size)
   value_vocab = vocab(f"{path}/counts/values.txt", vocab_size)
   token_vocab = vocab(f"{path}/counts/tokens.txt", vocab_size)

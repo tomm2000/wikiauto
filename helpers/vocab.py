@@ -33,4 +33,4 @@ class vocab:
     if idx in self.idx2word:
       return self.idx2word[idx]
     else:
-      raise KeyError('Idx not found in vocab')
+      raise KeyError(f'Idx [{idx}] not found in vocab')

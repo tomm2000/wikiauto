@@ -57,7 +57,7 @@ def split_data(pairs, train_size=0.8):
 
 train_pairs, test_pairs = split_data(pairs)
 
-# ----============= TRAINING FUNCTIONS =============----
+# ----============= TRAINING/EVALUATION FUNCTIONS =============----
 
 def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
   encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
@@ -79,7 +79,6 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
 
   for di in range(target_length):
     use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
-    use_teacher_forcing = True
 
     current_target = target_tensor[:, di] # [BATCH]
 

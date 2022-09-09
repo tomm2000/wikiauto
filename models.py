@@ -85,7 +85,7 @@ class AttnCalc(nn.Module):
     temp_v = self.v.unsqueeze(2) #- [BATCH, HIDDEN, 1]
     attn_weights = torch.bmm(attn_features, temp_v) # [BATCH, ENCODER_INPUT_SIZE, 1]
     
-    # attn_weights = torch.sum(attn_weights, dim=2) # [BATCH, ENCODER_INPUT_SIZE] #NOTE: is this needed? 
+    # attn_weights = torch.sum(attn_weights, dim=2) # [BATCH, ENCODER_INPUT_SIZE] #NOTE: questo serve? 
     attn_weights = F.softmax(attn_weights.squeeze(2), dim=1) #- [BATCH, ENCODER_INPUT_SIZE]
 
     coverage += attn_weights # [BATCH, ENCODER_INPUT_SIZE]
@@ -121,19 +121,18 @@ class AttnDecoderRNN(nn.Module):
     self.tanhout = nn.Tanh()
 
   def forward(self, encoder_outputs, input, hidden, coverage, context_vector=None):
-
     embedded = self.embedding(input).view(self.batch_size, -1) # [BATCH, EMBEDDING]
     embedded = self.dropout(embedded) # [BATCH, EMBEDDING]
 
     # hidden = [1, BATCH, HIDDEN]
     # encoder_outputs = [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
     # coverage = [BATCH, ENCODER_INPUT_SIZE]
+    # input= [BATCH, EMBEDDING + HIDDEN]
 
     if context_vector is None:
       context_vector, _, _ = self.calcAttn(hidden, encoder_outputs, coverage)
     #context_vector = [BATCH, HIDDEN]
     
-    # input -> [BATCH, EMBEDDING + HIDDEN]
     new_input = self.newIn(torch.cat((embedded, context_vector), 1)).view(1, self.batch_size, -1) #- [1, BATCH, HIDDEN]
 
     output, hidden = self.gru(new_input, hidden) # [1, BATCH, HIDDEN]
@@ -146,7 +145,7 @@ class AttnDecoderRNN(nn.Module):
 
     output = torch.cat((output, context_vector), 1) # [BATCH, HIDDEN * 2]
     output = self.preOut(output) # [BATCH, HIDDEN]
-    output = self.tanhout(output) #- [BATCH, HIDDEN] NOTE: da chiedere
+    output = self.tanhout(output) #- [BATCH, HIDDEN]
 
     # output = self.dropout2(output) 0.5
 

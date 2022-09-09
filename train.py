@@ -20,20 +20,19 @@ from colorama import Fore
 import os
 
 # ----============= SETUP =============----
-# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-# torch.set_flush_denormal(True)
+# os.environ['CUDA_LAUNCH_BLOCKING'] = '1' # DEBUG
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-ENCODER_INPUT_SIZE = 20 # dimensione dell'input dell'encoder (numero di triple tipo-valore-posizione in input)
-DECODER_OUTPUT_SIZE = 40 # dimensione dell'output del decoder (lunghezza della frase in output)
+ENCODER_INPUT_SIZE = 50 # dimensione dell'input dell'encoder (numero di triple tipo-valore-posizione in input)
+DECODER_OUTPUT_SIZE = 100 # dimensione dell'output del decoder (lunghezza della frase in output)
 BATCH_SIZE = 10
 HIDDEN_SIZE = 256
 EMBEDDING_SIZE = 128
 teacher_forcing_ratio = 0.5
-base_path = "data"
+data_path = "data"
 
 # ----============= DATA LOADING =============----
 print(Fore.MAGENTA + "\n---- Loading data ----" + Fore.RESET)
@@ -41,12 +40,12 @@ print(Fore.MAGENTA + "\n---- Loading data ----" + Fore.RESET)
 type_vocab, value_vocab, token_vocab, pairs = load_data_training(
   torch=torch,
   device=device,
-  vocab_size=1000,
+  vocab_size=50000,
   batch_size=BATCH_SIZE,
   input_size=ENCODER_INPUT_SIZE,
   output_size=DECODER_OUTPUT_SIZE,
-  pair_amount=50,
-  path=base_path
+  pair_amount=20,
+  path=data_path
 )
 
 def split_data(pairs, train_size=0.8):
@@ -67,7 +66,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
 
   target_length = target_tensor.size(1)
 
-  loss = torch.zeros(1, device=device)
+  loss = 0
 
   encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
 
@@ -94,17 +93,20 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
     newloss = criterion(decoder_output, current_target)
 
     loss += newloss
+    print(f"loss 1: {loss}")
 
-  # print(f"loss 1: {loss}")
-
+  print(f"loss 2: {loss}")
   loss = loss / target_length
-  # print(f"loss 2: {loss}")
   loss.backward()
 
-  encoder_optimizer.step()
-  decoder_optimizer.step()
+  raise Exception("STOP")
 
-  # print("loss 3: ", loss)
+  # Clip gradient
+  nn.utils.clip_grad_norm_(encoder.parameters(), max_norm=5.0, norm_type=2)
+  encoder_optimizer.step()
+
+  nn.utils.clip_grad_norm_(decoder.parameters(), max_norm=5.0)
+  decoder_optimizer.step()
 
   return loss.item()
 
@@ -147,7 +149,7 @@ def trainEpoch(encoder, decoder, inputs, print_times=10, plot_times=10000, learn
       info = f"({iter} / {iter / epoch_len * 100:.2f}%)"
       loss = f"{print_loss_avg:.4f}"
 
-      print("Average time: " + average + " | " + since + " | " + info + " Loss: " + loss)
+      print("Average time: " + average + " | " + since + " | " + info + " | Loss: " + loss)
 
       avg_time = time.time()
       print_loss_total = 0
@@ -242,7 +244,7 @@ decoder = AttnDecoderRNN(
 # ----============= TRAINING =============----
 print(Fore.MAGENTA + "\n---- Training models ----\n" + Fore.RESET)
 
-EPOCHS = 1
+EPOCHS = 10
 FLAT = 3
 
 PLOT_TIMES = 1000
@@ -252,16 +254,16 @@ BATCH_PRINT_SIZE = 3
 prec_loss = 0
 
 start_time = str(datetime.now().strftime("%d.%m_%H.%M"))
-output_file = f"{base_path}/output/out-{start_time}.txt"
+output_file = f"{data_path}/output/out-{start_time}.txt"
 
 # with open(output_file, 'w', encoding='utf-8') as outfile: pass
 
 def saveModel(encoder, decoder, epoch):
-  torch.save(encoder, f"{base_path}/models/encoder_{start_time}-ep_{epoch}.pt")
-  torch.save(decoder, f"{base_path}/models/decoder_{start_time}-ep_{epoch}.pt")
+  torch.save(encoder, f"{data_path}/models/encoder_{start_time}-ep_{epoch}.pt")
+  torch.save(decoder, f"{data_path}/models/decoder_{start_time}-ep_{epoch}.pt")
 
 def savePlot(plot, epoch):
-  plot.savefig(f"{base_path}/plots/plot_{start_time}-ep_{epoch}.png")
+  plot.savefig(f"{data_path}/plots/plot_{start_time}-ep_{epoch}.png")
 
 def saveOutput(sample, epoch, extra = ""): #sample = (loss, decoder_outputs, target_tensor)
   loss = sample[0]
@@ -321,10 +323,13 @@ for epoch in range(1, EPOCHS+1):
 
 #  TODO:
 #- dropout percentuale
-#- criterion se serve logsoftmax
+#- criterion se serve logsoftmax -> serve.
 
 #- togliere dropout nel test piccolo
 #- se funziona tutto attention weights padding
 
+#- cambiare i batch ad ogni epoch
+
 # NOTE: da chiedere
 # detach
+# se cambiare i batch ad ogni epoch

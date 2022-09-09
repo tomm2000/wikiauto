@@ -18,6 +18,7 @@ import time
 from datetime import datetime
 from colorama import Fore
 import os
+import matplotlib.pyplot as plt
 
 # ----============= SETUP =============----
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1' # DEBUG
@@ -53,8 +54,6 @@ def split_data(pairs, train_size=0.8):
   train_pairs = pairs[:train_size]
   test_pairs = pairs[train_size:]
   return train_pairs, test_pairs
-
-train_pairs, test_pairs = split_data(pairs)
 
 # ----============= TRAINING/EVALUATION FUNCTIONS =============----
 
@@ -93,13 +92,9 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
     newloss = criterion(decoder_output, current_target)
 
     loss += newloss
-    print(f"loss 1: {loss}")
 
-  print(f"loss 2: {loss}")
   loss = loss / target_length
   loss.backward()
-
-  raise Exception("STOP")
 
   # Clip gradient
   nn.utils.clip_grad_norm_(encoder.parameters(), max_norm=5.0, norm_type=2)
@@ -155,7 +150,7 @@ def trainEpoch(encoder, decoder, inputs, print_times=10, plot_times=10000, learn
       print_loss_total = 0
 
 
-    if iter % print_every == 0:
+    if iter % plot_every == 0:
       plot_loss_avg = plot_loss_total / plot_every
       plot_losses.append(plot_loss_avg)
       plot_loss_total = 0
@@ -168,7 +163,7 @@ def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
   encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
   target_length = target_tensor.size(1)
 
-  loss = torch.zeros(1, device=device)
+  loss = 0
 
   encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
 
@@ -200,7 +195,7 @@ def evaluateEpoch(encoder, decoder, inputs):
 
   sample_start = None
   sample_end = None
-  loss = 0
+  tot_loss = 0
 
   for iter in range(1, epoch_len+1):
     training_pair = inputs[iter-1]
@@ -208,7 +203,7 @@ def evaluateEpoch(encoder, decoder, inputs):
     target_tensor = training_pair[1]
 
     loss, decoder_outputs = evaluate(input_tensor, target_tensor, encoder, decoder, criterion)
-    loss += loss
+    tot_loss += loss
 
     if iter == 1:
       sample_start = (loss, decoder_outputs, target_tensor)
@@ -216,7 +211,7 @@ def evaluateEpoch(encoder, decoder, inputs):
     if iter == epoch_len:
       sample_end = (loss, decoder_outputs, target_tensor)
 
-  loss = loss / epoch_len
+  loss = tot_loss / epoch_len
 
   return loss, sample_start, sample_end
 
@@ -244,17 +239,22 @@ decoder = AttnDecoderRNN(
 # ----============= TRAINING =============----
 print(Fore.MAGENTA + "\n---- Training models ----\n" + Fore.RESET)
 
-EPOCHS = 10
+EPOCHS = 40
 FLAT = 3
 
 PLOT_TIMES = 1000
-PRINT_TIMES = 10
+PRINT_TIMES = 5
 BATCH_PRINT_SIZE = 3
 
+plot_losses = []
 prec_loss = 0
 
 start_time = str(datetime.now().strftime("%d.%m_%H.%M"))
 output_file = f"{data_path}/output/out-{start_time}.txt"
+
+# train_pairs, test_pairs = split_data(pairs)
+train_pairs = pairs
+test_pairs = pairs
 
 # with open(output_file, 'w', encoding='utf-8') as outfile: pass
 
@@ -288,11 +288,11 @@ def saveOutput(sample, epoch, extra = ""): #sample = (loss, decoder_outputs, tar
     
 
 for epoch in range(1, EPOCHS+1):
-  print(Fore.GREEN + f"----========= EPOCH {epoch}/{EPOCHS}=========----" + Fore.RESET)
+  print(Fore.GREEN + f"----========= EPOCH {epoch}/{EPOCHS} =========----" + Fore.RESET)
   epoch_start = time.time()
   
   random.shuffle(pairs)
-  plot_losses = trainEpoch(encoder, decoder, train_pairs, print_times=PRINT_TIMES, plot_times=PLOT_TIMES)
+  plot_losses += trainEpoch(encoder, decoder, train_pairs, print_times=PRINT_TIMES, plot_times=PLOT_TIMES)
   print(Fore.GREEN + f"------------------- Trained -------------------" + Fore.RESET)
   curr_loss, sample_start, sample_end = evaluateEpoch(encoder, decoder, test_pairs)
 
@@ -316,8 +316,9 @@ for epoch in range(1, EPOCHS+1):
 
   plot = getPlot(plot_losses)
   savePlot(plot, epoch)
+  plt.close(plot)
 
-  saveModel(encoder, decoder, epoch)
+  # saveModel(encoder, decoder, epoch)
 
 
 

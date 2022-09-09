@@ -43,22 +43,6 @@ def asMsecs(s):
   return '%ds %dms' % (sec, msec)
 
 
-def showPlot(points, ticks = None):
-  plt.figure()
-  fig, ax = plt.subplots()
-  # this locator puts ticks at regular intervals
-  if ticks == None:
-    ticks = (max(points) - min(points)) / 10
-  
-  if isnan(ticks):
-    ticks = 0.5
-
-  loc = ticker.MultipleLocator(base=ticks)
-  ax.yaxis.set_major_locator(loc)
-  # ax.set_facecolor('pink')
-  plt.plot(points)
-  plt.show()
-
 def getPlot(points, ticks = None):
   plt.figure()
   fig, ax = plt.subplots()

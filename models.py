@@ -26,7 +26,7 @@ class EncoderRNN(nn.Module):
 
     output = torch.cat((E_type_out, E_pos_out, E_value_out), dim=2) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING * 2 + 10]
 
-    output = self.dropout1(output) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING * 2 + 10]
+    # output = self.dropout1(output) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING * 2 + 10] # questo è da usare
 
     # hidden [BATCH, HIDDEN] ----- output [BATCH, EMBEDDING * 2 + 10]
     output, hidden = self.gru(output, hidden)
@@ -55,7 +55,7 @@ class AttnCalc(nn.Module):
 
     self.cvgConv = nn.Conv2d(encoder_input_size, encoder_input_size, (1, hidden_size), stride=1, padding="same")
 
-    self.v = nn.Parameter(torch.FloatTensor(batch_size, hidden_size), requires_grad=True)
+    self.v = nn.Parameter(nn.init.trunc_normal_(torch.empty(batch_size, hidden_size)), requires_grad=True)
 
     self.tanhfeatures = nn.Tanh()
 
@@ -83,9 +83,9 @@ class AttnCalc(nn.Module):
     attn_features = self.tanhfeatures(attn_features) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
 
     temp_v = self.v.unsqueeze(2) #- [BATCH, HIDDEN, 1]
+
     attn_weights = torch.bmm(attn_features, temp_v) # [BATCH, ENCODER_INPUT_SIZE, 1]
     
-    # attn_weights = torch.sum(attn_weights, dim=2) # [BATCH, ENCODER_INPUT_SIZE] #NOTE: questo serve? 
     attn_weights = F.softmax(attn_weights.squeeze(2), dim=1) #- [BATCH, ENCODER_INPUT_SIZE]
 
     coverage += attn_weights # [BATCH, ENCODER_INPUT_SIZE]
@@ -122,7 +122,7 @@ class AttnDecoderRNN(nn.Module):
 
   def forward(self, encoder_outputs, input, hidden, coverage, context_vector=None):
     embedded = self.embedding(input).view(self.batch_size, -1) # [BATCH, EMBEDDING]
-    embedded = self.dropout(embedded) # [BATCH, EMBEDDING]
+    # embedded = self.dropout(embedded) # [BATCH, EMBEDDING]  # questo è da usare
 
     # hidden = [1, BATCH, HIDDEN]
     # encoder_outputs = [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
@@ -152,7 +152,6 @@ class AttnDecoderRNN(nn.Module):
     output = self.out(output) # [BATCH, OUTPUT_VOCAB_SIZE]
 
     output = F.log_softmax(output, dim=1) #- [BATCH, OUTPUT_VOCAB_SIZE]
-
 
     return output, hidden, context_vector, attn_weights, coverage
 

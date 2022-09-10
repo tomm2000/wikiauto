@@ -4,7 +4,7 @@ from __future__ import unicode_literals, print_function, division
 # other files
 from helpers.vocab import START_TOKEN
 from helpers.helpers import *
-from helpers.load_data import load_data_training
+from helpers.load_data import batchPairs, load_data_training
 from models import EncoderRNN, AttnDecoderRNN
 
 # pytorch
@@ -39,13 +39,10 @@ data_path = "data"
 print(Fore.MAGENTA + "\n---- Loading data ----" + Fore.RESET)
 
 type_vocab, value_vocab, token_vocab, pairs = load_data_training(
-  torch=torch,
-  device=device,
   vocab_size=50000,
-  batch_size=BATCH_SIZE,
   input_size=ENCODER_INPUT_SIZE,
   output_size=DECODER_OUTPUT_SIZE,
-  pair_amount=20,
+  pair_amount=100,
   path=data_path
 )
 
@@ -77,6 +74,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
 
   for di in range(target_length):
     use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
+    use_teacher_forcing = True
 
     current_target = target_tensor[:, di] # [BATCH]
 
@@ -239,12 +237,12 @@ decoder = AttnDecoderRNN(
 # ----============= TRAINING =============----
 print(Fore.MAGENTA + "\n---- Training models ----\n" + Fore.RESET)
 
-EPOCHS = 40
+EPOCHS = 100
 FLAT = 3
 
 PLOT_TIMES = 1000
 PRINT_TIMES = 5
-BATCH_PRINT_SIZE = 3
+BATCH_PRINT_SIZE = 2
 
 plot_losses = []
 prec_loss = 0
@@ -252,9 +250,6 @@ prec_loss = 0
 start_time = str(datetime.now().strftime("%d.%m_%H.%M"))
 output_file = f"{data_path}/output/out-{start_time}.txt"
 
-# train_pairs, test_pairs = split_data(pairs)
-train_pairs = pairs
-test_pairs = pairs
 
 # with open(output_file, 'w', encoding='utf-8') as outfile: pass
 
@@ -263,38 +258,39 @@ def saveModel(encoder, decoder, epoch):
   torch.save(decoder, f"{data_path}/models/decoder_{start_time}-ep_{epoch}.pt")
 
 def savePlot(plot, epoch):
-  plot.savefig(f"{data_path}/plots/plot_{start_time}-ep_{epoch}.png")
+  plot.savefig(f"{data_path}/plots/plot_{start_time}.png")
 
 def saveOutput(sample, epoch, extra = ""): #sample = (loss, decoder_outputs, target_tensor)
   loss = sample[0]
-  decoder_outputs = torch.stack(sample[1]).transpose(0, 1) # [BATCH, SEQ_LEN]
+  decoder_outputs = torch.stack(sample[1]).view(BATCH_SIZE, -1) # [BATCH, SEQ_LEN]
   target_tensor = sample[2] # [BATCH, SEQ_LEN]
 
   with open(output_file, 'a', encoding='utf-8') as outfile:
     outfile.write(f"\n================ Epoch: {epoch} | Loss: {loss} | {extra} ================")
 
     for i in range(min(BATCH_PRINT_SIZE, len(decoder_outputs))):
-      outfile.write("----------------------\n")
-      predict = ""
-      target = ""
+      predict = token_vocab.batchToSentence(decoder_outputs[i])
+      target  = token_vocab.batchToSentence(target_tensor[i]) 
 
-      for idx in decoder_outputs[i]:
-        predict += token_vocab.getWord(idx.item()) + " "
-      for idx in target_tensor[i]:
-        target += token_vocab.getWord(idx.item()) + " "
+      outfile.write("--------------------\n")
       outfile.write(predict + "\n")
       outfile.write("-.... ↑|predict|↑ ....... ↓|target|↓ ....-\n")
       outfile.write(target + "\n")
     
 
 for epoch in range(1, EPOCHS+1):
-  print(Fore.GREEN + f"----========= EPOCH {epoch}/{EPOCHS} =========----" + Fore.RESET)
+  print(Fore.RED + f"----========= EPOCH {epoch}/{EPOCHS} =========----" + Fore.RESET)
   epoch_start = time.time()
   
   random.shuffle(pairs)
-  plot_losses += trainEpoch(encoder, decoder, train_pairs, print_times=PRINT_TIMES, plot_times=PLOT_TIMES)
-  print(Fore.GREEN + f"------------------- Trained -------------------" + Fore.RESET)
-  curr_loss, sample_start, sample_end = evaluateEpoch(encoder, decoder, test_pairs)
+  batches = batchPairs(device, pairs, BATCH_SIZE)
+  # train_batches, test_batches = split_data(batches)
+  train_batches = batches
+  test_batches = batches
+  print(Fore.GREEN + f"------------------- Inputs loaded -------------------" + Fore.RESET)
+
+  plot_losses += trainEpoch(encoder, decoder, train_batches, print_times=PRINT_TIMES, plot_times=PLOT_TIMES)
+  curr_loss, sample_start, sample_end = evaluateEpoch(encoder, decoder, test_batches)
 
   temp_loss = calc_avg_loss(prec_loss, curr_loss)
   if(prec_loss < temp_loss):
@@ -316,7 +312,7 @@ for epoch in range(1, EPOCHS+1):
 
   plot = getPlot(plot_losses)
   savePlot(plot, epoch)
-  plt.close(plot)
+  plt.close('all')
 
   # saveModel(encoder, decoder, epoch)
 
@@ -333,4 +329,3 @@ for epoch in range(1, EPOCHS+1):
 
 # NOTE: da chiedere
 # detach
-# se cambiare i batch ad ogni epoch

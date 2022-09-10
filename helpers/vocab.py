@@ -34,3 +34,21 @@ class vocab:
       return self.idx2word[idx]
     else:
       raise KeyError(f'Idx [{idx}] not found in vocab')
+
+  def batchToSentence(self, tensor, add_id = False):
+    sentence = ""
+
+    for t in range(tensor.size(0)):
+      if add_id:
+        sentence += f"({tensor[t].item()}) "
+      sentence += self.getWord(tensor[t].item()) + " | "
+
+    return sentence
+
+  def batchesToSentences(self, tensor, add_id = False):
+    sentences = ""
+
+    for b in range(tensor.size(0)):
+      sentences += self.batchToSentence(tensor[b], add_id) + "\n"
+
+    return sentences

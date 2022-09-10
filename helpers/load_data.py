@@ -3,90 +3,36 @@ from math import ceil, floor
 from helpers.vocab import vocab, END_TOKEN, START_TOKEN, PADDING_TOKEN, UNKNOWN_TOKEN
 from helpers.helpers import print_progress, readLines
 import json
+import torch
 
 def prepare_line(table, vocab, phrase_size, apply_end_tnk=False, end_token=END_TOKEN):
   table = table[0:phrase_size]
 
   while len(table) < phrase_size:
-      table.append(vocab.getID(PADDING_TOKEN))
+    table.append(vocab.getID(PADDING_TOKEN))
 
   table = [vocab.getID(el) for el in table]
 
   if apply_end_tnk:
-      table[phrase_size - 1] = vocab.getID(end_token)
+    table[phrase_size - 1] = vocab.getID(end_token)
 
   return table
 
 
-def load_data_evaluate(torch, device, type_vocab, value_vocab, batch_size=1, phrase_size=30, amount=1000):
-    inputs = []
-    batch = []
-
-    POSITIONS = [[i for i in range(phrase_size)] for j in range(batch_size)]
-
-    lines = readLines('data/clean/combined_data_eval.json', amount * batch_size)
-    iter = 0
-
-    if amount > len(lines) / batch_size:
-        amount = floor(len(lines) / batch_size)
-        print("too many pairs requested, new pair amount (articles / batch_size): ", amount)
-    else:
-        print(f"selected {amount} pairs out of {floor(len(lines) / batch_size)} available")
-    print("------------------------")
-
-    for line in lines:
-        try:
-            json_line = json.loads("{" + line + "}")
-        except:
-            continue
-
-        for article_name in json_line:  # there is only 1 key per article, the name
-            batch.append(json_line[article_name])
-
-        if len(batch) == batch_size:
-            # print(batch.keys())
-
-            inputs.append(torch.tensor([
-                # types:
-                [prepare_line(table["types"], type_vocab, phrase_size) for table in batch],
-                # valus:
-                [prepare_line(table["values"], value_vocab, phrase_size) for table in batch],
-                # positions:
-                POSITIONS
-            ], device=device))
-
-            batch = []
-
-            iter += 1
-            print_progress(min(amount, len(lines)), iter, 'loading data', round(amount / 10))
-            if len(inputs) >= amount:
-                break
-
-    print("------------------------")
-    print(f"pairs: {len(inputs)}, total articles: {len(inputs) * batch_size}")
-    print(f"batch size: {batch_size}, phrase size: {phrase_size}")
-    print("input shape: ", inputs[0].shape)
-
-    return inputs
-
-
-def load_data_training(torch, device, vocab_size=50000, batch_size=5, input_size=30, output_size = 30, pair_amount=1000, path = "data"):
+def load_data_training(vocab_size=50000, input_size=30, output_size = 30, pair_amount=1000, path = "data"):
   type_vocab  = vocab(f"{path}/counts/types.txt", vocab_size)
   value_vocab = vocab(f"{path}/counts/values.txt", vocab_size)
   token_vocab = vocab(f"{path}/counts/tokens.txt", vocab_size)
   pairs = []
-  batch = []
-
-  POSITIONS = [[i for i in range(input_size)] for j in range(batch_size)]
 
   lines = readLines(f"{path}/clean/combined_data_train.json", -1)
   iter = 0
 
-  if pair_amount > len(lines) / batch_size:
-    pair_amount = floor(len(lines) / batch_size)
-    print("too many pairs requested, new pair amount (articles / batch_size): ", pair_amount)
+  if pair_amount > len(lines):
+    pair_amount = len(lines)
+    print("too many pairs requested, new pair amount: ", pair_amount)
   else:
-    print(f"selected {pair_amount} pairs out of {floor(len(lines) / batch_size)} available")
+    print(f"selected {pair_amount} pairs out of {len(lines)} available")
   print("------------------------")
 
   for line in lines:
@@ -95,41 +41,54 @@ def load_data_training(torch, device, vocab_size=50000, batch_size=5, input_size
     except:
       continue
 
-    for article_name in json_line:  # there is only 1 key per article, the name
-      batch.append(json_line[article_name])
+    article_name = ""
 
-    if (len(batch) == batch_size):
-      # print(batch.keys())
+    for n in json_line:
+      article_name = n # there is only 1 key per article, the name
 
-      input_tensor = torch.tensor([
-        # types:
-        [prepare_line(table["types"], type_vocab, input_size) for table in batch],
-        # valus:
-        [prepare_line(table["values"], value_vocab, input_size) for table in batch],
-        # positions:
-        POSITIONS
-      ], device=device)
+    article_data = [
+      # types:
+      prepare_line(json_line[article_name]["types"], type_vocab, input_size),
+      # values:
+      prepare_line(json_line[article_name]["values"], value_vocab, input_size),
+      # positions:
+      [i for i in range(input_size)],
+      # tokens (target):
+      prepare_line(json_line[article_name]["tokens"], token_vocab, output_size, True)
+    ]
 
-      target_tensor = torch.tensor(
-        [prepare_line(table["tokens"], token_vocab, output_size, True) for table in batch],
-        device=device
-      )
+    pairs.append(article_data)
 
-      pairs.append((input_tensor, target_tensor))
-      batch = []
-
-      iter += 1
-      print_progress(min(pair_amount, len(lines)), iter, 'loading data', ceil(pair_amount / 10))
-      if len(pairs) >= pair_amount:
-        break
+    iter += 1
+    print_progress(min(pair_amount, len(lines)), iter, 'loading data', ceil(pair_amount / 10))
+    if len(pairs) >= pair_amount:
+      break
 
   print("------------------------")
-  print(f"pairs: {len(pairs)}, total articles: {len(pairs) * batch_size}")
-  print(f"batch size: {batch_size}, input size: {input_size}, output size: {output_size}")
-  print("input shape: ", pairs[0][0].shape)
-  print("output shape: ", pairs[0][1].shape)
+  print(f"pairs: {len(pairs)}, input size: {input_size}, output size: {output_size}")
 
   return type_vocab, value_vocab, token_vocab, pairs
+
+
+def batchPairs(device, pairs, batch_size):
+  batches = []
+
+  for i in range(0, len(pairs), batch_size):
+    inputs = (
+      torch.tensor([pair[0] for pair in pairs[i:i + batch_size]], device=device),
+      torch.tensor([pair[1] for pair in pairs[i:i + batch_size]], device=device),
+      torch.tensor([pair[2] for pair in pairs[i:i + batch_size]], device=device)
+    )
+
+    target = torch.tensor([pair[3] for pair in pairs[i:i + batch_size]], device=device)
+
+    batches.append((inputs, target))
+
+  print(f"batches: {len(batches)}")
+  print(f"input size: 3 x {batches[0][0][0].shape}")
+  print(f"target size: 1 x {batches[0][1].shape}")
+
+  return batches
 
 
 def getInputSizeAverage():

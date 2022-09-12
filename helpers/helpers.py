@@ -43,20 +43,16 @@ def asMsecs(s):
   return '%ds %dms' % (sec, msec)
 
 
-def getPlot(points, ticks = None):
+def getPlot(plots):
   plt.figure()
-  fig, ax = plt.subplots()
-  # this locator puts ticks at regular intervals
-  if ticks == None:
-    ticks = (max(points) - min(points)) / 10
+  fig, ax = plt.subplots(nrows=len(plots), ncols=1)
 
-  if isnan(ticks):
-    ticks = 0.5
-
-  loc = ticker.MultipleLocator(base=ticks)
-  ax.yaxis.set_major_locator(loc)
-  # ax.set_facecolor('pink')
-  plt.plot(points)
+  for i in range(len(plots)):
+    for j in range(len(plots[i])):
+      ax[i].plot(plots[i][j])
+      ax[i].axhline(y=0, color='k')
+      ax[i].grid(True, which='both')
+    
   return fig
 
 def calc_avg_loss(prec_loss, curr_loss, alpha=0.95):

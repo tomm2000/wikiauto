@@ -73,7 +73,9 @@ def load_data_training(vocab_size=50000, input_size=30, output_size = 30, pair_a
 def batchPairs(device, pairs, batch_size):
   batches = []
 
-  for i in range(0, len(pairs), batch_size):
+  len_pairs = len(pairs) - (len(pairs) % batch_size)
+
+  for i in range(0, len_pairs, batch_size):
     inputs = (
       torch.tensor([pair[0] for pair in pairs[i:i + batch_size]], device=device),
       torch.tensor([pair[1] for pair in pairs[i:i + batch_size]], device=device),
@@ -84,7 +86,7 @@ def batchPairs(device, pairs, batch_size):
 
     batches.append((inputs, target))
 
-  print(f"batches: {len(batches)}")
+  print(f"{len_pairs} pairs grouped in {len(batches)} batches of size {batch_size}")
   print(f"input size: 3 x {batches[0][0][0].shape}")
   print(f"target size: 1 x {batches[0][1].shape}")
 
@@ -115,3 +117,5 @@ def getInputSizeAverage():
   avg_tokens = sum_tokens / count
 
   return avg_types, avg_values, avg_tokens
+
+

@@ -26,7 +26,7 @@ class EncoderRNN(nn.Module):
 
     output = torch.cat((E_type_out, E_pos_out, E_value_out), dim=2) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING * 2 + 10]
 
-    # output = self.dropout1(output) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING * 2 + 10] # questo è da usare
+    output = self.dropout1(output) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING * 2 + 10] #NOTE questo è da usare
 
     # hidden [BATCH, HIDDEN] ----- output [BATCH, EMBEDDING * 2 + 10]
     output, hidden = self.gru(output, hidden)
@@ -122,7 +122,7 @@ class AttnDecoderRNN(nn.Module):
 
   def forward(self, encoder_outputs, input, hidden, coverage, context_vector=None):
     embedded = self.embedding(input).view(self.batch_size, -1) # [BATCH, EMBEDDING]
-    # embedded = self.dropout(embedded) # [BATCH, EMBEDDING]  # questo è da usare
+    embedded = self.dropout(embedded) # [BATCH, EMBEDDING]  #NOTE questo è da usare
 
     # hidden = [1, BATCH, HIDDEN]
     # encoder_outputs = [BATCH, ENCODER_INPUT_SIZE, HIDDEN]

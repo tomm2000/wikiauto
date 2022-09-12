@@ -99,10 +99,10 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   loss.backward()
 
   # Clip gradient
-  # nn.utils.clip_grad_norm_(encoder.parameters(), max_norm=5.0, norm_type=2)
+  nn.utils.clip_grad_norm_(encoder.parameters(), max_norm=5.0, norm_type=2)
   encoder_optimizer.step()
 
-  # nn.utils.clip_grad_norm_(decoder.parameters(), max_norm=5.0)
+  nn.utils.clip_grad_norm_(decoder.parameters(), max_norm=5.0)
   decoder_optimizer.step()
 
   return loss, perplexity

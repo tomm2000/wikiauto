@@ -305,11 +305,11 @@ for epoch in range(START_EPOCH, EPOCHS+1):
 
   loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_batches, plot_times=PLOT_TIMES)
   train_losses.append(loss_avg)
-  train_perplexities.append(min(perplexity_avg, 30))
+  train_perplexities.append(perplexity_avg, 100)
 
   loss_avg, perplexity_avg, sample_start, sample_end = evaluateEpoch(encoder, decoder, test_batches)
   eval_losses.append(loss_avg)
-  eval_perplexities.append(min(perplexity_avg, 30))
+  eval_perplexities.append(perplexity_avg, 100)
 
   iter_losses += plot_losses
   curr_loss = loss_avg
@@ -324,7 +324,11 @@ for epoch in range(START_EPOCH, EPOCHS+1):
 
   print(Fore.GREEN + f"------------------- Finished epoch -------------------")
   print(f"time: {asMinutes(time.time() - epoch_start)}, loss: {curr_loss}, avg loss: {temp_loss}, flat: {FLAT}\n" + Fore.RESET)
-
+  
+  print(train_losses)
+  print(eval_losses)
+  print(train_perplexities)
+  print(eval_perplexities)
   
   if(FLAT == 0):
     break

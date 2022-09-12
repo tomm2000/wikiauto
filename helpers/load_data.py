@@ -4,6 +4,7 @@ from helpers.vocab import vocab, END_TOKEN, START_TOKEN, PADDING_TOKEN, UNKNOWN_
 from helpers.helpers import print_progress, readLines
 import json
 import torch
+from tqdm import tqdm
 
 def prepare_line(table, vocab, phrase_size, apply_end_tnk=False, end_token=END_TOKEN):
   table = table[0:phrase_size]
@@ -25,7 +26,7 @@ def load_data_training(vocab_size=50000, input_size=30, output_size = 30, pair_a
   token_vocab = vocab(f"{path}/counts/tokens.txt", vocab_size)
   pairs = []
 
-  lines = readLines(f"{path}/clean/combined_data_train.json", -1)
+  lines = readLines(f"{path}/clean/combined_data_train.json", pair_amount)
   iter = 0
 
   if pair_amount > len(lines):
@@ -35,7 +36,7 @@ def load_data_training(vocab_size=50000, input_size=30, output_size = 30, pair_a
     print(f"selected {pair_amount} pairs out of {len(lines)} available")
   print("------------------------")
 
-  for line in lines:
+  for line in tqdm(lines, desc="loading data: "):
     try:
       json_line = json.loads("{" + line + "}")
     except:
@@ -60,9 +61,7 @@ def load_data_training(vocab_size=50000, input_size=30, output_size = 30, pair_a
     pairs.append(article_data)
 
     iter += 1
-    print_progress(min(pair_amount, len(lines)), iter, 'loading data', ceil(pair_amount / 10))
-    if len(pairs) >= pair_amount:
-      break
+    # print_progress(min(pair_amount, len(lines)), iter, 'loading data', ceil(pair_amount / 10))
 
   print("------------------------")
   print(f"pairs: {len(pairs)}, input size: {input_size}, output size: {output_size}")
@@ -87,8 +86,7 @@ def batchPairs(device, pairs, batch_size):
     batches.append((inputs, target))
 
   print(f"{len_pairs} pairs grouped in {len(batches)} batches of size {batch_size}")
-  print(f"input size: 3 x {batches[0][0][0].shape}")
-  print(f"target size: 1 x {batches[0][1].shape}")
+  print(f"input size: 3 x {batches[0][0][0].shape}, target size: 1 x {batches[0][1].shape}")
 
   return batches
 

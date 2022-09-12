@@ -156,4 +156,5 @@ class AttnDecoderRNN(nn.Module):
     return output, hidden, context_vector, attn_weights, coverage
 
   def initHidden(self, device):
+    raise NotImplementedError
     return torch.zeros(1, self.batch_size, self.hidden_size, device=device)

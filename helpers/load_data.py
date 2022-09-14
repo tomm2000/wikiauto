@@ -20,7 +20,7 @@ def prepare_line(table, vocab, phrase_size, apply_end_tnk=False, end_token=END_T
   return table
 
 
-def load_data_training(vocab_size=50000, input_size=30, output_size = 30, pair_amount=1000, path = "data"):
+def load_data_training(device, vocab_size=50000, input_size=30, output_size = 30, pair_amount=1000, path = "data"):
   type_vocab  = vocab(f"{path}/counts/types.txt", vocab_size)
   value_vocab = vocab(f"{path}/counts/values.txt", vocab_size)
   token_vocab = vocab(f"{path}/counts/tokens.txt", vocab_size)
@@ -66,29 +66,35 @@ def load_data_training(vocab_size=50000, input_size=30, output_size = 30, pair_a
   print("------------------------")
   print(f"pairs: {len(pairs)}, input size: {input_size}, output size: {output_size}")
 
-  return type_vocab, value_vocab, token_vocab, pairs
+  
+  train_size = int(0.8 * len(pairs))
 
+  train_pairs = (
+    torch.tensor([pair[0] for pair in pairs[:train_size]], device=device),
+    torch.tensor([pair[1] for pair in pairs[:train_size]], device=device),
+    torch.tensor([pair[2] for pair in pairs[:train_size]], device=device),
+    torch.tensor([pair[3] for pair in pairs[:train_size]], device=device)
+  )
 
-def batchPairs(device, pairs, batch_size):
-  batches = []
+  eval_pairs = (
+    torch.tensor([pair[0] for pair in pairs[train_size:]], device=device),
+    torch.tensor([pair[1] for pair in pairs[train_size:]], device=device),
+    torch.tensor([pair[2] for pair in pairs[train_size:]], device=device),
+    torch.tensor([pair[3] for pair in pairs[train_size:]], device=device)
+  )
 
-  len_pairs = len(pairs) - (len(pairs) % batch_size)
+  return type_vocab, value_vocab, token_vocab, train_pairs, eval_pairs
 
-  for i in range(0, len_pairs, batch_size):
-    inputs = (
-      torch.tensor([pair[0] for pair in pairs[i:i + batch_size]], device=device),
-      torch.tensor([pair[1] for pair in pairs[i:i + batch_size]], device=device),
-      torch.tensor([pair[2] for pair in pairs[i:i + batch_size]], device=device)
-    )
+def batchPair(pairs, iter, batch_size):
+  inputs = (
+    torch.stack([pairs[0][i] for i in range(iter, iter + batch_size)]),
+    torch.stack([pairs[1][i] for i in range(iter, iter + batch_size)]),
+    torch.stack([pairs[2][i] for i in range(iter, iter + batch_size)])
+  )
 
-    target = torch.tensor([pair[3] for pair in pairs[i:i + batch_size]], device=device)
+  target = torch.stack([pairs[3][i] for i in range(iter, iter + batch_size)])
 
-    batches.append((inputs, target))
-
-  print(f"{len_pairs} pairs grouped in {len(batches)} batches of size {batch_size}")
-  print(f"input size: 3 x {batches[0][0][0].shape}, target size: 1 x {batches[0][1].shape}")
-
-  return batches
+  return inputs, target
 
 
 def getInputSizeAverage():

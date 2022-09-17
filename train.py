@@ -16,9 +16,7 @@ from torch import optim
 # other
 import random
 import time
-from datetime import datetime
 from colorama import Fore
-import os
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -29,14 +27,20 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-ENCODER_INPUT_SIZE = 48 # dimensione dell'input dell'encoder (numero di triple tipo-valore-posizione in input)
-DECODER_OUTPUT_SIZE = 96 # dimensione dell'output del decoder (lunghezza della frase in output)
-BATCH_SIZE = 64
-HIDDEN_SIZE = 256
-EMBEDDING_SIZE = 128
+DECODER_OUTPUT_SIZE = 96
 PAIR_AMOUNT = 10000000
-VOCAB_SIZE = 50000
 teacher_forcing_ratio = 0.5 # 0 = no teacher forcing, 1 = only teacher forcing
+
+SETUP_FILE = "results/main/data.json"
+SETUP = loadTrainData(SETUP_FILE)
+
+print(Fore.MAGENTA + f"Loaded data from previous training session:{Fore.RESET} {SETUP['epoch']} epochs trained")
+
+BATCH_SIZE = SETUP["batch_size"]
+ENCODER_INPUT_SIZE = SETUP["encoder_input_size"]
+HIDDEN_SIZE = SETUP["hidden_size"]
+EMBEDDING_SIZE = SETUP["embedding_size"]
+VOCAB_SIZE = SETUP["vocab_size"]
 
 data_path = "data"
 
@@ -51,12 +55,6 @@ type_vocab, value_vocab, token_vocab, train_pairs, eval_pairs = load_data_traini
   pair_amount=PAIR_AMOUNT,
   path=data_path
 )
-
-def split_data(pairs, train_size=0.8):
-  train_size = int(train_size * len(pairs))
-  train_pairs = pairs[:train_size]
-  test_pairs = pairs[train_size:]
-  return train_pairs, test_pairs
 
 # ----============= TRAINING/EVALUATION FUNCTIONS =============----
 
@@ -138,9 +136,6 @@ def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=5e-5):
       plot_losses.append(plot_loss_avg)
       plot_loss_total = 0
 
-    if iter % 50 == 0:
-      gc.collect()
-
   loss_avg = loss_total / epoch_len
   perplexity_avg = tot_perplexity / epoch_len
 
@@ -178,7 +173,7 @@ def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
   loss = (loss / target_length)
   perplexity = torch.exp(loss)
 
-  return loss, perplexity, decoder_outputs
+  return loss.item(), perplexity.item(), decoder_outputs
 
 
 def evaluateEpoch(encoder, decoder, inputs):
@@ -202,84 +197,83 @@ def evaluateEpoch(encoder, decoder, inputs):
     tot_perplexity += perplexity
 
     if iter == 1:
-      sample_start = (loss.item(), decoder_outputs, target_tensor)
+      sample_start = (loss, decoder_outputs, target_tensor)
 
     if iter == epoch_len:
-      sample_end = (loss.item(), decoder_outputs, target_tensor)
+      sample_end = (loss, decoder_outputs, target_tensor)
 
   loss_avg = tot_loss / epoch_len
   perplexity_avg = tot_perplexity / epoch_len
 
-  return loss_avg.item(), perplexity_avg.item(), sample_start, sample_end
+  return loss_avg, perplexity_avg, sample_start, sample_end
 
 
 # ----============= MODEL LOADING =============----
 print(Fore.MAGENTA + "\n---- Loading models ----" + Fore.RESET)
 
-encoder = EncoderRNN(
-  type_vocab=type_vocab,
-  value_vocab=value_vocab,
-  hidden_size=HIDDEN_SIZE,
-  embedding_size=EMBEDDING_SIZE,
-  encoder_input_size=ENCODER_INPUT_SIZE
-).to(device)
+test_name = "test_1"
+epoch_file = f"results/{test_name}/data.txt"
 
-decoder = AttnDecoderRNN(
-  output_vocab_size=len(token_vocab),
-  hidden_size=HIDDEN_SIZE,
-  embedding_size=EMBEDDING_SIZE,
-  batch_size=BATCH_SIZE,
-  encoder_input_size=ENCODER_INPUT_SIZE,
-  device=device,
-).to(device)
+START_EPOCH =  SETUP["epoch"]
+flat = SETUP["flat"]
+prec_loss = SETUP["prec_loss"]
 
-# encoder = torch.load("D:\programming\pytorch\wikiauto\models\encoder_12.09_18.12-ep_100.pt")
-# decoder = torch.load("D:\programming\pytorch\wikiauto\models\decoder_12.09_18.12-ep_100.pt")
+iter_losses = SETUP["iter_losses"]
+train_losses = SETUP["train_losses"]
+eval_losses = SETUP["eval_losses"]
+train_perplexity = SETUP["train_perplexity"]
+eval_perplexity = SETUP["eval_perplexity"]
+
+model_path = SETUP["model_path"]
+result_path = SETUP["result_path"]
+
+encoder = f"{model_path}/encoder_{START_EPOCH}.pt"
+decoder = f"{model_path}/decoder_{START_EPOCH}.pt"
+
+print("encoder = " + str(encoder))
+print("decoder = " + str(decoder))
+
+try:
+  encoder = torch.load(encoder)
+  print("loaded old encoder")
+except:
+  encoder = EncoderRNN(
+    type_vocab=type_vocab,
+    value_vocab=value_vocab,
+    hidden_size=HIDDEN_SIZE,
+    embedding_size=EMBEDDING_SIZE,
+    encoder_input_size=ENCODER_INPUT_SIZE
+  ).to(device)
+
+try:
+  decoder = torch.load(decoder)
+  print("loaded old decoder")
+except:
+  decoder = AttnDecoderRNN(
+    output_vocab_size=len(token_vocab),
+    hidden_size=HIDDEN_SIZE,
+    embedding_size=EMBEDDING_SIZE,
+    batch_size=BATCH_SIZE,
+    encoder_input_size=ENCODER_INPUT_SIZE,
+    device=device,
+  ).to(device)
 
 # ----============= TRAINING =============----
 print(Fore.MAGENTA + "\n---- Training models ----\n" + Fore.RESET)
 
-START_EPOCH = 1
+print(Fore.RED + "REMEMBER TO CREATE MODEL OUTPUT FOLDER!!!!" + Fore.RESET)
 
 EPOCHS = 100000
-FLAT = 5
-
-PLOT_TIMES = 1000
+PLOT_TIMES = 200
 BATCH_PRINT_SIZE = 4
-SAVE_EVERY = 1
 OUTPUT_EVERY = 1
-
-iter_losses = []
-
-train_losses = []
-eval_losses = []
-
-train_perplexities = []
-eval_perplexities = []
-
-prec_loss = 0
-
-start_time = str(datetime.now().strftime("%d.%m_%H.%M"))
-output_file = f"{data_path}/output/out-{start_time}.txt"
-
-model_folder = f"D:/programming/pytorch/wikiauto/models"
-
-
-# with open(output_file, 'w', encoding='utf-8') as outfile: pass
-
-def saveModel(encoder, decoder, epoch):
-  torch.save(encoder, f"{model_folder}/encoder_{start_time}-ep_{epoch}.pt")
-  torch.save(decoder, f"{model_folder}/decoder_{start_time}-ep_{epoch}.pt")
-
-def savePlot(plot, epoch):
-  plot.savefig(f"{data_path}/plots/plot_{start_time}.png")
 
 def saveOutput(sample, epoch, extra = ""): #sample = (loss, decoder_outputs, target_tensor)
   loss = sample[0]
   decoder_outputs = torch.stack(sample[1]).view(BATCH_SIZE, -1) # [BATCH, SEQ_LEN]
   target_tensor = sample[2] # [BATCH, SEQ_LEN]
 
-  with open(output_file, 'a', encoding='utf-8') as outfile:
+  with open(f"{result_path}/outputs.txt", 'a', encoding='utf-8') as outfile:
     outfile.write(f"\n================ Epoch: {epoch} | Loss: {loss} | {extra} ================")
 
     for i in range(min(BATCH_PRINT_SIZE, len(decoder_outputs))):
@@ -301,47 +295,55 @@ for epoch in range(START_EPOCH, EPOCHS+1):
   
   print(Fore.GREEN + f"------------------- Inputs loaded -------------------" + Fore.RESET)
 
+  #- train
   loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_pairs, plot_times=PLOT_TIMES)
   train_losses.append(loss_avg)
-  train_perplexities.append(perplexity_avg, 100)
+  train_perplexity.append(perplexity_avg)
 
+  #- eval
   loss_avg, perplexity_avg, sample_start, sample_end = evaluateEpoch(encoder, decoder, eval_pairs)
   eval_losses.append(loss_avg)
-  eval_perplexities.append(perplexity_avg, 100)
+  eval_perplexity.append(perplexity_avg)
 
   iter_losses += plot_losses
   curr_loss = loss_avg
 
   temp_loss = calc_avg_loss(prec_loss, curr_loss)
   if(prec_loss < temp_loss):
-    FLAT -= 0
+    flat -= 0
   else:
-    FLAT = 3
+    flat = 5
   
   prec_loss = temp_loss
 
   print(Fore.GREEN + f"------------------- Finished epoch -------------------")
-  print(f"time: {asMinutes(time.time() - epoch_start)}, loss: {curr_loss}, avg loss: {temp_loss}, flat: {FLAT}\n" + Fore.RESET)
-  
-  print(train_losses)
-  print(eval_losses)
-  print(train_perplexities)
-  print(eval_perplexities)
-  
-  if(FLAT == 0):
-    break
+  print(f"time: {asMinutes(time.time() - epoch_start)}, loss: {curr_loss}, avg loss: {temp_loss}, flat: {flat}\n" + Fore.RESET)
 
-  if epoch % OUTPUT_EVERY == 0:
-    # saveOutput(sample_start, epoch, "start")
-    saveOutput(sample_end, epoch, "end")
+  #- save model
+  encoder_path = f"{model_path}/encoder_{epoch}.pt"
+  decoder_path = f"{model_path}/decoder_{epoch}.pt"
+  torch.save(encoder, encoder_path)
+  torch.save(decoder, decoder_path)
 
-  plot = getPlot([[iter_losses], [train_losses, eval_losses], [train_perplexities, eval_perplexities]])
-  savePlot(plot, epoch)
+  saveTrainData(SETUP_FILE, 
+    epoch=epoch,
+    iter_losses=iter_losses,
+    train_losses=train_losses,
+    eval_losses=eval_losses,
+    train_perplexity=train_perplexity,
+    eval_perplexity=eval_perplexity,
+    prec_loss=prec_loss,
+    flat=flat,
+  )
+
+  if epoch % OUTPUT_EVERY == 0: saveOutput(sample_end, epoch, "end")
+
+  plot = getPlot([[iter_losses], [train_losses, eval_losses], [train_perplexity, eval_perplexity]])
+  plot.savefig(f"{result_path}/plot.png")
   plt.close('all')
-
-  if epoch % SAVE_EVERY == 0:
-    saveModel(encoder, decoder, epoch)
-
+  
+  #- early stopping
+  # if(flat == 0): break
 
 
 #  TODO:

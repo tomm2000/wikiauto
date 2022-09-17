@@ -1,8 +1,8 @@
 from cmath import isnan
+import json
 import time
 import math
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 
 def print_progress(total, iter, name, every=5000):
   if(iter % every == 0 or iter == total):
@@ -21,6 +21,25 @@ def readLines(filename, size=10):
       if i >= size and size > 0:
         break
     return l
+
+
+def loadTrainData(path):
+  return json.load(open(path, "r"))
+  
+def saveTrainData(file, epoch, iter_losses, train_losses, eval_losses, train_perplexity, eval_perplexity, prec_loss, flat):
+  data = loadTrainData(file)
+
+  data["epoch"] = epoch
+  data["iter_losses"] = iter_losses
+  data["train_losses"] = train_losses
+  data["eval_losses"] = eval_losses
+  data["train_perplexity"] = train_perplexity
+  data["eval_perplexity"] = eval_perplexity
+  data["prec_loss"] = prec_loss
+  data["flat"] = flat
+
+  with open(file, "w") as f:
+    f.write(json.dumps(data))
 
 
 def asMinutes(s):

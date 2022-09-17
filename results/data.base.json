@@ -1,0 +1,17 @@
+{
+  "epoch" : 1,
+  "model_path" : "",
+  "result_path": "",
+  "batch_size" : 1,
+  "encoder_input_size": 48,
+  "hidden_size": 256,
+  "embedding_size": 128,
+  "vocab_size": 50000,
+  "prec_loss": 0,
+  "flat": 0,
+  "iter_losses" : [],
+  "train_losses" : [],
+  "eval_losses" : [],
+  "train_perplexity" : [],
+  "eval_perplexity" : []
+}

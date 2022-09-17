@@ -7,3 +7,6 @@ plots/*
 __pycache__
 *.bkp
 .vscode
+*.csv
+*.txt
+*.png

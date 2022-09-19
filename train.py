@@ -263,6 +263,7 @@ print(Fore.MAGENTA + "\n---- Training models ----\n" + Fore.RESET)
 
 print(Fore.RED + "REMEMBER TO CREATE MODEL OUTPUT FOLDER!!!!" + Fore.RESET)
 
+START_EPOCH += 1
 EPOCHS = 100000
 PLOT_TIMES = 200
 BATCH_PRINT_SIZE = 4

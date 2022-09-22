@@ -9,7 +9,6 @@ article_lines = readLines(article_file, LIMIT)
 article_data = {} # article: [string]
 
 for i in range(min(len(article_lines), LIMIT)):
-# for line in article_lines:
   line = article_lines[i]
 
   print_progress(min(LIMIT, len(article_lines)), i, 'article')
@@ -30,7 +29,6 @@ wikidata_file = 'data/raw/wikidata.json'
 wikidata_lines = readLines(wikidata_file, LIMIT)
 
 for i in range(min(len(wikidata_lines), LIMIT)):
-# for line in wikidata_lines:
   line = wikidata_lines[i]
   print_progress(min(LIMIT, len(wikidata_lines)), i, 'wikidata')
 
@@ -63,7 +61,6 @@ infobox_file = 'data/raw/infobox.json'
 infobox_lines = readLines(infobox_file, LIMIT)
 
 for i in range(min(len(infobox_lines), LIMIT)):
-# for line in infobox_lines:
   line = infobox_lines[i]
   print_progress(min(LIMIT, len(infobox_lines)), i, 'infobox')
 

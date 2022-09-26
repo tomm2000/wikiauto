@@ -106,7 +106,7 @@ def beam_search(decoder, beam_size, seq_len, encoder_outputs, encoder_hidden, en
 
   hyps_sorted = sort_hyps(results)
 
-  output = torch.tensor([h.tokens[1:] for h in hyps_sorted], device=device)
+  output = torch.tensor(hyps_sorted[0].tokens[1:], device=device)
 
   return output
 

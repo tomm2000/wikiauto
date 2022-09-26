@@ -36,15 +36,15 @@ class EncoderRNN(nn.Module):
     # output [BATCH, ENCODER_INPUT_SIZE, 2*HIDDEN_SIZE]
     # hidden [2, BATCH, HIDDEN_SIZE] 
 
-    hidden = hidden.view(-1, 2 * self.hidden_size) # [BATCH, 2*HIDDEN_SIZE]
+    hidden = hidden.view(1, -1, 2 * self.hidden_size) # [1, BATCH, 2*HIDDEN_SIZE]
 
     # linear -> hidden*2 to hidden
     output = self.outputLinear(output) # [BATCH, ENCODER_INPUT_SIZE, HIDDEN_SIZE]
-    hidden = self.hiddenLinear(hidden) # [BATCH, HIDDEN_SIZE]
+    hidden = self.hiddenLinear(hidden) # [1, BATCH, HIDDEN_SIZE]
 
     # relu
-    output = F.relu(output)
-    hidden = F.relu(hidden)
+    output = F.relu(output) # [BATCH, ENCODER_INPUT_SIZE, HIDDEN_SIZE]
+    hidden = F.relu(hidden) # [1, BATCH, HIDDEN_SIZE]
 
     return output, hidden
 

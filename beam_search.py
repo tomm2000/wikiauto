@@ -39,6 +39,7 @@ def beam_search(decoder, beam_size, seq_len, encoder_outputs, encoder_hidden, en
   # encoder_input_size: quanti input ha l'encoder
   # end_id: id del token di fine frase
   # start_id: id del token di inizio frase
+  MIN_SEQ_LEN = 35
 
   hyps = np.array([Hypothesis([start_id], [0.0]) for _ in range(beam_size)])  # [BEAM_SIZE]
 
@@ -57,12 +58,10 @@ def beam_search(decoder, beam_size, seq_len, encoder_outputs, encoder_hidden, en
 
     tokens = np.transpose(tokens) # [BEAM_SIZE]
 
-    data[:, step] = tokens
-
     all_hyps = []
-    
-    # probabilita' predette dal modello allo step corrente
-    inputs = torch.tensor(data[:, step], dtype=torch.long, device=device)
+
+    inputs = torch.tensor(tokens, dtype=torch.long, device=device) # [BEAM_SIZE]
+
     all_probs, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, inputs, decoder_hidden, coverage, context_vector)
 
     probs = all_probs.data.cpu().numpy() # [BEAM_SIZE, VOCAB_SIZE]
@@ -73,6 +72,7 @@ def beam_search(decoder, beam_size, seq_len, encoder_outputs, encoder_hidden, en
       # pere prendere la probabilita della ipotesi al tempo e step corrente
       # usate [i,step]. Copiate da model/make_name l'estrazione delle probabilita
       # in questo caso, non serve prendere il character corrente (lo faremo alla fine)
+
       indexes = probs.argsort()[::-1] # [BEAM_SIZE, VOCAB_SIZE]
 
       # scegliamo 2 * beam_size possibili espansioni dei cammini
@@ -86,7 +86,7 @@ def beam_search(decoder, beam_size, seq_len, encoder_outputs, encoder_hidden, en
     hyps = []
     for h in sort_hyps(all_hyps):
       if h.last_token == end_id:
-        if step >= seq_len:
+        if step >= MIN_SEQ_LEN:
           results.append(h)
       else:
         hyps.append(h)
@@ -97,7 +97,7 @@ def beam_search(decoder, beam_size, seq_len, encoder_outputs, encoder_hidden, en
     # aggiorniamo data con i token migliori
     if step + 2 < seq_len:
       tokens = np.matrix([h.tokens for h in hyps])
-      data[:, :step+2] = tokens
+      # data[:, :step+2] = tokens
 
     step += 1
 

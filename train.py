@@ -1,8 +1,9 @@
 # future
 from __future__ import unicode_literals, print_function, division
+from beam_search import beam_search
 
 # other files
-from helpers.vocab import START_TOKEN
+from helpers.vocab import END_TOKEN, START_TOKEN
 from helpers.helpers import *
 from helpers.load_data import batchPair, load_data_training
 from models import EncoderRNN, AttnDecoderRNN
@@ -26,7 +27,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-SETUP_FILE = "results/main2/data.json"
+SETUP_FILE = "setup/main2/data.json"
 SETUP = loadTrainData(SETUP_FILE)
 
 print(Fore.MAGENTA + f"Loaded data from previous training session:{Fore.RESET} {SETUP['epoch']} epochs trained")
@@ -162,12 +163,14 @@ def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
   #   device=device,
   # )
 
+  # raise NotImplementedError
+
   # loss = criterion(out, target_tensor)
   # # RuntimeError: 0D or 1D target tensor expected, multi-target not supported
 
   # #----------------------------------------------------#
 
-  # loss = 0
+  # # loss = 0
 
   # for di in range(target_length):
   #   loss += criterion(out[:, di], target_tensor[:, di])
@@ -177,7 +180,6 @@ def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
   # perplexity = torch.exp(loss)
 
   # return out
-
   
 
   decoder_input = torch.tensor([type_vocab.getID(START_TOKEN) for _ in range(BATCH_SIZE)], device=device)
@@ -326,9 +328,9 @@ for epoch in range(START_EPOCH, EPOCHS+1):
   print(Fore.GREEN + f"------------------- Inputs loaded -------------------" + Fore.RESET)
 
   #- train
-  loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_pairs, plot_times=PLOT_TIMES)
-  train_losses.append(loss_avg)
-  train_perplexity.append(perplexity_avg)
+  # loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_pairs, plot_times=PLOT_TIMES)
+  # train_losses.append(loss_avg)
+  # train_perplexity.append(perplexity_avg)
 
   #- eval
   loss_avg, perplexity_avg, sample_start, sample_end = evaluateEpoch(encoder, decoder, eval_pairs)

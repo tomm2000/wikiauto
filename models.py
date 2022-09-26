@@ -1,4 +1,5 @@
 from tarfile import ENCODING
+from unicodedata import bidirectional
 import torch
 import torch.nn as nn
 import time
@@ -15,29 +16,40 @@ class EncoderRNN(nn.Module):
     self.valueEmbedding = nn.Embedding(len(value_vocab), embedding_size)
     self.positionEmbedding = nn.Embedding(encoder_input_size, 10)
     
-    self.gru = nn.GRU(embedding_size * 2 + 10, self.hidden_size, batch_first=True)
+    self.gru = nn.GRU(embedding_size * 2 + 10, self.hidden_size, batch_first=True, bidirectional=True)
     self.dropout1 = nn.Dropout(0.1)
     # self.dropout2 = nn.Dropout(0.5)
 
+    self.outputLinear = nn.Linear(hidden_size*2, hidden_size)
+    self.hiddenLinear = nn.Linear(hidden_size*2, hidden_size)
+
   def forward(self, inputs, hidden):
-    E_type_out = self.typeEmbedding(inputs[0]) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING]
-    E_value_out = self.valueEmbedding(inputs[1]) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING]
-    E_pos_out = self.positionEmbedding(inputs[2]) # [BATCH,, ENCODER_INPUT_SIZE, EMBEDDING]
+    E_type_out  = self.typeEmbedding(inputs[0])     # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING_SIZE]
+    E_value_out = self.valueEmbedding(inputs[1])    # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING_SIZE]
+    E_pos_out   = self.positionEmbedding(inputs[2]) # [BATCH, ENCODER_INPUT_SIZE, 10]
 
-    output = torch.cat((E_type_out, E_pos_out, E_value_out), dim=2) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING * 2 + 10]
+    embedding = torch.cat((E_type_out, E_pos_out, E_value_out), dim=2) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING_SIZE * 2 + 10]
 
-    output = self.dropout1(output) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING * 2 + 10] #NOTE questo è da usare
+    output = self.dropout1(embedding) # [BATCH, ENCODER_INPUT_SIZE, EMBEDDING_SIZE * 2 + 10]
 
-    # hidden [BATCH, HIDDEN] ----- output [BATCH, EMBEDDING * 2 + 10]
     output, hidden = self.gru(output, hidden)
-    # output [BATCH, ENCODER_INPUT_SIZE, HIDDEN] ----- hidden [1, BATCH, HIDDEN]
+    # output [BATCH, ENCODER_INPUT_SIZE, 2*HIDDEN_SIZE]
+    # hidden [2, BATCH, HIDDEN_SIZE] 
 
-    # output = self.dropout2(output)
+    hidden = hidden.view(-1, 2 * self.hidden_size) # [BATCH, 2*HIDDEN_SIZE]
+
+    # linear -> hidden*2 to hidden
+    output = self.outputLinear(output) # [BATCH, ENCODER_INPUT_SIZE, HIDDEN_SIZE]
+    hidden = self.hiddenLinear(hidden) # [BATCH, HIDDEN_SIZE]
+
+    # relu
+    output = F.relu(output)
+    hidden = F.relu(hidden)
 
     return output, hidden
 
   def initHidden(self, device, batch_size):
-    return torch.zeros(1, batch_size, self.hidden_size, device=device)
+    return torch.zeros(2, batch_size, self.hidden_size, device=device)
 
 
 

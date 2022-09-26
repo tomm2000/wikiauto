@@ -2,7 +2,7 @@
   "epoch": 0,
   "model_path": "D:\\programming\\pytorch\\wikiauto\\models\\test",
   "result_path": "C:\\Users\\tomma\\PROGRAMMING_C\\PYTORCH\\wikiauto3\\results\\test",
-  "batch_size": 2,
+  "batch_size": 3,
   "encoder_input_size": 48,
   "hidden_size": 256,
   "embedding_size": 128,

@@ -1,10 +1,8 @@
 # future
 from __future__ import unicode_literals, print_function, division
-import gc
-from beam_search import beam_search
 
 # other files
-from helpers.vocab import END_TOKEN, START_TOKEN, vocab
+from helpers.vocab import START_TOKEN
 from helpers.helpers import *
 from helpers.load_data import batchPair, load_data_training
 from models import EncoderRNN, AttnDecoderRNN
@@ -28,11 +26,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-DECODER_OUTPUT_SIZE = 96
-PAIR_AMOUNT = 100
-teacher_forcing_ratio = 0.5 # 0 = no teacher forcing, 1 = only teacher forcing
-
-SETUP_FILE = "results/test/data.json"
+SETUP_FILE = "results/main2/data.json"
 SETUP = loadTrainData(SETUP_FILE)
 
 print(Fore.MAGENTA + f"Loaded data from previous training session:{Fore.RESET} {SETUP['epoch']} epochs trained")
@@ -42,6 +36,9 @@ ENCODER_INPUT_SIZE = SETUP["encoder_input_size"]
 HIDDEN_SIZE = SETUP["hidden_size"]
 EMBEDDING_SIZE = SETUP["embedding_size"]
 VOCAB_SIZE = SETUP["vocab_size"]
+DECODER_OUTPUT_SIZE = SETUP["decoder_output_size"]
+PAIR_AMOUNT = SETUP["pairs"]
+TEACHER_FORCIING_RATIO = SETUP["teacher_forcing_ratio"]
 
 data_path = "data"
 
@@ -78,7 +75,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   context_vector = None
 
   for di in range(target_length):
-    use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
+    use_teacher_forcing = True if random.random() < TEACHER_FORCIING_RATIO else False
 
     if use_teacher_forcing: # Teacher forcing: Feed the target as the next input
       decoder_output, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
@@ -107,7 +104,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   return loss.item(), perplexity.item()
 
 
-def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=5e-5):
+def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.15):
   plot_losses = []
   plot_loss_total = 0  # Reset every plot_every
   loss_total = 0
@@ -116,8 +113,8 @@ def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=5e-5):
   epoch_len = math.floor(inputs[0].size(0) / BATCH_SIZE)
   plot_every = max(int(epoch_len / plot_times), 1)
 
-  encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
-  decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
+  encoder_optimizer = optim.Adagrad(encoder.parameters(), lr=learning_rate)
+  decoder_optimizer = optim.Adagrad(decoder.parameters(), lr=learning_rate)
   criterion = nn.NLLLoss()
 
   for iter in tqdm(range(1, epoch_len+1), desc="Training: "):
@@ -153,58 +150,59 @@ def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
 
   encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
 
-  # decoder_input = torch.tensor([type_vocab.getID(START_TOKEN) for _ in range(BATCH_SIZE)], device=device)
-  # decoder_hidden = encoder_hidden
+  # out = beam_search(
+  #   decoder=decoder,
+  #   beam_size=BATCH_SIZE,
+  #   seq_len=DECODER_OUTPUT_SIZE,
+  #   encoder_outputs=encoder_outputs,
+  #   encoder_hidden=encoder_hidden,
+  #   encoder_input_size=ENCODER_INPUT_SIZE,
+  #   end_id=token_vocab.getID(END_TOKEN),
+  #   start_id=token_vocab.getID(START_TOKEN),
+  #   device=device,
+  # )
 
-  # coverage = torch.zeros(BATCH_SIZE, ENCODER_INPUT_SIZE, device=device)
-  # context_vector = None
-  
-  # decoder_outputs = []
+  # loss = criterion(out, target_tensor)
+  # # RuntimeError: 0D or 1D target tensor expected, multi-target not supported
 
-  out = beam_search(
-    decoder=decoder,
-    beam_size=BATCH_SIZE,
-    seq_len=DECODER_OUTPUT_SIZE,
-    encoder_outputs=encoder_outputs,
-    encoder_hidden=encoder_hidden,
-    encoder_input_size=ENCODER_INPUT_SIZE,
-    end_id=token_vocab.getID(END_TOKEN),
-    start_id=token_vocab.getID(START_TOKEN),
-    device=device,
-  )
+  # #----------------------------------------------------#
 
-  loss = criterion(out, target_tensor)
-  # RuntimeError: 0D or 1D target tensor expected, multi-target not supported
-
-  #----------------------------------------------------#
-
-  loss = 0
-
-  for di in range(target_length):
-    loss += criterion(out[:, di], target_tensor[:, di])
-    # RuntimeError: "nll_loss_forward_reduce_cuda_kernel_1d" not implemented for 'Long'
-
-  loss = (loss / target_length)
-  perplexity = torch.exp(loss)
-
-  return out
-
+  # loss = 0
 
   # for di in range(target_length):
-  #   decoder_output, decoder_hidden, context_vector, attn_weights, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
-  #   topv, topi = decoder_output.topk(1)
-  #   decoder_outputs.append(topi.squeeze())
-  #   decoder_input = topi.squeeze()
-
-  #   newloss = criterion(decoder_output,  target_tensor[:, di])
-  #   loss += newloss
-
+  #   loss += criterion(out[:, di], target_tensor[:, di])
+  #   # RuntimeError: "nll_loss_forward_reduce_cuda_kernel_1d" not implemented for 'Long'
 
   # loss = (loss / target_length)
   # perplexity = torch.exp(loss)
 
+  # return out
 
-  # return loss.item(), perplexity.item(), decoder_outputs
+  
+
+  decoder_input = torch.tensor([type_vocab.getID(START_TOKEN) for _ in range(BATCH_SIZE)], device=device)
+  decoder_hidden = encoder_hidden
+
+  coverage = torch.zeros(BATCH_SIZE, ENCODER_INPUT_SIZE, device=device)
+  context_vector = None
+  
+  decoder_outputs = []
+
+  for di in range(target_length):
+    decoder_output, decoder_hidden, context_vector, attn_weights, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
+    topv, topi = decoder_output.topk(1)
+    decoder_outputs.append(topi.squeeze())
+    decoder_input = topi.squeeze()
+
+    newloss = criterion(decoder_output,  target_tensor[:, di])
+    loss += newloss
+
+
+  loss = (loss / target_length)
+  perplexity = torch.exp(loss)
+
+
+  return loss.item(), perplexity.item(), decoder_outputs
 
 
 def evaluateEpoch(encoder, decoder, inputs):
@@ -328,9 +326,9 @@ for epoch in range(START_EPOCH, EPOCHS+1):
   print(Fore.GREEN + f"------------------- Inputs loaded -------------------" + Fore.RESET)
 
   #- train
-  # loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_pairs, plot_times=PLOT_TIMES)
-  # train_losses.append(loss_avg)
-  # train_perplexity.append(perplexity_avg)
+  loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_pairs, plot_times=PLOT_TIMES)
+  train_losses.append(loss_avg)
+  train_perplexity.append(perplexity_avg)
 
   #- eval
   loss_avg, perplexity_avg, sample_start, sample_end = evaluateEpoch(encoder, decoder, eval_pairs)

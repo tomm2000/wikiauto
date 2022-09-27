@@ -328,9 +328,9 @@ for epoch in range(START_EPOCH, EPOCHS+1):
   print(Fore.GREEN + f"------------------- Inputs loaded -------------------" + Fore.RESET)
 
   #- train
-  # loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_pairs, plot_times=PLOT_TIMES)
-  # train_losses.append(loss_avg)
-  # train_perplexity.append(perplexity_avg)
+  loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_pairs, plot_times=PLOT_TIMES)
+  train_losses.append(loss_avg)
+  train_perplexity.append(perplexity_avg)
 
   #- eval
   loss_avg, perplexity_avg, sample_start, sample_end = evaluateEpoch(encoder, decoder, eval_pairs)

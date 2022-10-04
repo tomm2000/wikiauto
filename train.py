@@ -161,25 +161,6 @@ def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
   #   device=device,
   # )
 
-  # raise NotImplementedError
-
-  # loss = criterion(out, target_tensor)
-  # # RuntimeError: 0D or 1D target tensor expected, multi-target not supported
-
-  # #----------------------------------------------------#
-
-  # # loss = 0
-
-  # for di in range(target_length):
-  #   loss += criterion(out[:, di], target_tensor[:, di])
-  #   # RuntimeError: "nll_loss_forward_reduce_cuda_kernel_1d" not implemented for 'Long'
-
-  # loss = (loss / target_length)
-  # perplexity = torch.exp(loss)
-
-  # return out
-  
-
   decoder_input = torch.tensor([type_vocab.getID(START_TOKEN) for _ in range(BATCH_SIZE)], device=device)
   decoder_hidden = encoder_hidden
 

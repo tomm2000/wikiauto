@@ -5,13 +5,13 @@
 
 # 2: unzippare il file `data.zip` in una cartella `/data`
 dovrebbe essere:\
-|`./data`\
-|--`/clean`\
-|---- `dataset.json`\
-|--`/counts`\
-|---- `tokens.txt`\
-|---- `types.txt`\
-|---- `values.txt`
+|-`./data`\
+|---`/clean`\
+|----- `dataset.json`\
+|---`/counts`\
+|----- `tokens.txt`\
+|----- `types.txt`\
+|----- `values.txt`
 
 # 3: il file `setup/main/setup.json` contiene il setup per il modello
 - in "model_path" mettere il path in salvare il modello (e da dove verrà caricato)

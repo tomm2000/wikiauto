@@ -1,12 +1,12 @@
 # future
 from __future__ import unicode_literals, print_function, division
-from beam_search import beam_search
+from lib.beam_search import beam_search
 
 # other files
-from helpers.vocab import END_TOKEN, START_TOKEN
-from helpers.helpers import *
-from helpers.load_data import batchPair, load_data_training
-from models import EncoderRNN, AttnDecoderRNN
+from lib.vocab import END_TOKEN, START_TOKEN
+from lib.generic import *
+from lib.load_data import batchPair, load_data
+from lib.models import EncoderRNN, AttnDecoderRNN
 
 # pytorch
 import torch
@@ -27,7 +27,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-SETUP_FILE = "setup/main2/data.json"
+SETUP_FILE = "setup/test/data.json"
 SETUP = loadTrainData(SETUP_FILE)
 
 print(Fore.MAGENTA + f"Loaded data from previous training session:{Fore.RESET} {SETUP['epoch']} epochs trained")
@@ -41,18 +41,15 @@ DECODER_OUTPUT_SIZE = SETUP["decoder_output_size"]
 PAIR_AMOUNT = SETUP["pairs"]
 TEACHER_FORCIING_RATIO = SETUP["teacher_forcing_ratio"]
 
-data_path = "data"
-
 # ----============= DATA LOADING =============----
 print(Fore.MAGENTA + "\n---- Loading data ----" + Fore.RESET)
 
-type_vocab, value_vocab, token_vocab, train_pairs, eval_pairs = load_data_training(
+type_vocab, value_vocab, token_vocab, train_pairs, eval_pairs = load_data(
   device=device,
   vocab_size=VOCAB_SIZE,
   input_size=ENCODER_INPUT_SIZE,
   output_size=DECODER_OUTPUT_SIZE,
   pair_amount=PAIR_AMOUNT,
-  path=data_path
 )
 
 # ----============= TRAINING/EVALUATION FUNCTIONS =============----

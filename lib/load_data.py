@@ -1,7 +1,6 @@
 from __future__ import unicode_literals, print_function, division
-from math import ceil, floor
-from helpers.vocab import vocab, END_TOKEN, START_TOKEN, PADDING_TOKEN, UNKNOWN_TOKEN
-from helpers.helpers import print_progress, readLines
+from lib.vocab import vocab, END_TOKEN, START_TOKEN, PADDING_TOKEN, UNKNOWN_TOKEN
+from lib.generic import readLines
 import json
 import torch
 from tqdm import tqdm
@@ -20,13 +19,13 @@ def prepare_line(table, vocab, phrase_size, apply_end_tnk=False, end_token=END_T
   return table
 
 
-def load_data_training(device, vocab_size=50000, input_size=30, output_size = 30, pair_amount=1000, path = "data"):
-  type_vocab  = vocab(f"{path}/counts/types.txt", vocab_size)
-  value_vocab = vocab(f"{path}/counts/values.txt", vocab_size)
-  token_vocab = vocab(f"{path}/counts/tokens.txt", vocab_size)
+def load_data(device, vocab_size=50000, input_size=30, output_size = 30, pair_amount=1000):
+  type_vocab  = vocab(f"data/counts/types.txt", vocab_size)
+  value_vocab = vocab(f"data/counts/values.txt", vocab_size)
+  token_vocab = vocab(f"data/counts/tokens.txt", vocab_size)
   pairs = []
 
-  lines = readLines(f"{path}/clean/combined_data_train.json", pair_amount)
+  lines = readLines(f"data/clean/combined_data_train.json", pair_amount)
   iter = 0
 
   if pair_amount > len(lines):

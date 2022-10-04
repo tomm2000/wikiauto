@@ -1,4 +1,4 @@
-from helpers.helpers import readLines
+from lib.generic import readLines
 
 UNKNOWN_TOKEN = '<UNK>'
 PADDING_TOKEN = '<PAD>'

@@ -45,7 +45,7 @@ TEACHER_FORCIING_RATIO = SETUP["teacher_forcing_ratio"]
 # ----============= DATA LOADING =============----
 print(Fore.MAGENTA + "\n---- Loading data ----" + Fore.RESET)
 
-type_vocab, value_vocab, token_vocab, train_pairs, eval_pairs = load_data(
+type_vocab, value_vocab, token_vocab, train_split, eval_split, test_split = load_data(
   device=device,
   vocab_size=VOCAB_SIZE,
   input_size=ENCODER_INPUT_SIZE,
@@ -110,6 +110,10 @@ def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.15):
   tot_perplexity = 0
 
   epoch_len = math.floor(inputs[0].size(0) / BATCH_SIZE)
+
+  if epoch_len == 0:
+    raise Exception(f"epoch len == 0, inputs size [{inputs[0].size(0)}] / batch size [{BATCH_SIZE}] must be >= 1")
+
   plot_every = max(int(epoch_len / plot_times), 1)
 
   encoder_optimizer = optim.Adagrad(encoder.parameters(), lr=learning_rate)
@@ -300,19 +304,25 @@ def saveOutput(sample, epoch, extra = ""): #sample = (loss, decoder_outputs, tar
 for epoch in range(START_EPOCH, EPOCHS+1):
   print(Fore.RED + f"----========= EPOCH {epoch}/{EPOCHS} =========----" + Fore.RESET)
   epoch_start = time.time()
-  
-  train_indexes = torch.randperm(train_pairs[0].size(0))
-  eval_indexes = torch.randperm(eval_pairs[0].size(0))
+
+  # randomize training data
+  train_indexes = torch.randperm(train_split[0].size(0))
+  train_data = (
+    train_split[0][train_indexes],
+    train_split[1][train_indexes],
+    train_split[2][train_indexes],
+    train_split[3][train_indexes],
+  )
   
   print(Fore.GREEN + f"------------------- Inputs loaded -------------------" + Fore.RESET)
 
   #- train
-  loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_pairs, plot_times=PLOT_TIMES)
+  loss_avg, perplexity_avg, plot_losses = trainEpoch(encoder, decoder, train_data, plot_times=PLOT_TIMES)
   train_losses.append(loss_avg)
   train_perplexity.append(perplexity_avg)
 
   #- eval
-  loss_avg, perplexity_avg, sample_start, sample_end = evaluateEpoch(encoder, decoder, eval_pairs)
+  loss_avg, perplexity_avg, sample_start, sample_end = evaluateEpoch(encoder, decoder, eval_split)
   eval_losses.append(loss_avg)
   eval_perplexity.append(perplexity_avg)
 
@@ -353,8 +363,8 @@ for epoch in range(START_EPOCH, EPOCHS+1):
   plot.savefig(f"{result_path}/plot.png")
   plt.close('all')
   
-  #- early stopping
-  # if(flat == 0): break
+  # - early stopping
+  if(flat == 0): break
 
 
 #  TODO:

@@ -18,8 +18,8 @@ def save_setup(path, epoch, iter_losses, train_losses, eval_losses, train_perple
   data["train_perplexities"] = train_perplexity
   data["eval_perplexities"] = eval_perplexity
 
-  with open(f"{path}/setup.json", "w") as f:
+  with open(f"{path}/data.json", "w") as f:
     f.write(json.dumps(data))
 
-  with open(f"{path}/data.json", "w") as f:
+  with open(f"{path}/setup.json", "w") as f:
     f.write(json.dumps(setup))

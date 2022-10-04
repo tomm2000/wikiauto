@@ -37,25 +37,17 @@ def load_data(device, vocab_size=50000, input_size=30, output_size = 30, pair_am
   print("------------------------")
 
   for line in tqdm(lines, desc="loading data: "):
-    try:
-      json_line = json.loads("{" + line + "}")
-    except:
-      continue
-
-    article_name = ""
-
-    for n in json_line:
-      article_name = n # there is only 1 key per article, the name
+    json_line = json.loads(line)
 
     article_data = [
       # types:
-      prepare_line(json_line[article_name]["types"], type_vocab, input_size),
+      prepare_line(json_line["types"], type_vocab, input_size),
       # values:
-      prepare_line(json_line[article_name]["values"], value_vocab, input_size),
+      prepare_line(json_line["values"], value_vocab, input_size),
       # positions:
       [i for i in range(input_size)],
       # tokens (target):
-      prepare_line(json_line[article_name]["tokens"], token_vocab, output_size, True)
+      prepare_line(json_line["tokens"], token_vocab, output_size, True)
     ]
 
     pairs.append(article_data)
@@ -68,22 +60,34 @@ def load_data(device, vocab_size=50000, input_size=30, output_size = 30, pair_am
 
   
   train_size = int(0.8 * len(pairs))
+  val_size = int(0.1 * len(pairs))
+  test_size = int(0.1 * len(pairs))
 
-  train_pairs = (
+  print(f"train size: {train_size}, val size: {val_size}, test size: {test_size}")
+
+  train_split = (
     torch.tensor([pair[0] for pair in pairs[:train_size]], device=device),
     torch.tensor([pair[1] for pair in pairs[:train_size]], device=device),
     torch.tensor([pair[2] for pair in pairs[:train_size]], device=device),
     torch.tensor([pair[3] for pair in pairs[:train_size]], device=device)
   )
 
-  eval_pairs = (
-    torch.tensor([pair[0] for pair in pairs[train_size:]], device=device),
-    torch.tensor([pair[1] for pair in pairs[train_size:]], device=device),
-    torch.tensor([pair[2] for pair in pairs[train_size:]], device=device),
-    torch.tensor([pair[3] for pair in pairs[train_size:]], device=device)
+  eval_split = (
+    torch.tensor([pair[0] for pair in pairs[train_size:train_size + val_size]], device=device),
+    torch.tensor([pair[1] for pair in pairs[train_size:train_size + val_size]], device=device),
+    torch.tensor([pair[2] for pair in pairs[train_size:train_size + val_size]], device=device),
+    torch.tensor([pair[3] for pair in pairs[train_size:train_size + val_size]], device=device)
   )
 
-  return type_vocab, value_vocab, token_vocab, train_pairs, eval_pairs
+  test_split = (
+    torch.tensor([pair[0] for pair in pairs[train_size + val_size:]], device=device),
+    torch.tensor([pair[1] for pair in pairs[train_size + val_size:]], device=device),
+    torch.tensor([pair[2] for pair in pairs[train_size + val_size:]], device=device),
+    torch.tensor([pair[3] for pair in pairs[train_size + val_size:]], device=device)
+  )
+
+
+  return type_vocab, value_vocab, token_vocab, train_split, eval_split, test_split
 
 def batchPair(pairs, iter, batch_size):
   inputs = (

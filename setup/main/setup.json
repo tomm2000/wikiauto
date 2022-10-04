@@ -1,8 +1,8 @@
 {
-  "pairs": 500000,
+  "pairs": 1000000,
   "epoch" : 0,
-  "model_path" : "",
-  "result_path": "",
+  "model_path" : "D:/path/to/model/folder",
+  "result_path": "C:/path/to/results/folder",
   "batch_size" : 64,
   "encoder_input_size": 48,
   "decoder_output_size": 96,

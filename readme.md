@@ -7,15 +7,16 @@
 dovrebbe essere:\
 |`./data`\
 |--`/clean`\
-|---- `combinded_data_eval.json`\
-|---- `combinded_data_train.json`\
+|---- `dataset.json`\
 |--`/counts`\
 |---- `tokens.txt`\
 |---- `types.txt`\
 |---- `values.txt`
 
-# 3: il file `setup/main2/data.json` contiene il setup per il modello
+# 3: il file `setup/main/setup.json` contiene il setup per il modello
 - in "model_path" mettere il path in salvare il modello (e da dove verrà caricato)
 - in "result_path" mettere il path dove verranno salvati i dati di output
 
-# 4: eseguire il file `train.py`
+# 4: il file `setup/main/data.json` contiene i dati salvati del modello (losses e perplexity)
+
+# 5: eseguire il file `train.py`

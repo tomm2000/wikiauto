@@ -28,7 +28,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-SETUP_FOLDER = "setup/test"
+SETUP_FOLDER = "setup/main"
 SETUP, DATA = load_setup(SETUP_FOLDER)
 
 print(Fore.MAGENTA + f"Loaded data from previous training session:{Fore.RESET} {SETUP['epoch']} epochs trained")

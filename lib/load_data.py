@@ -25,7 +25,8 @@ def load_data(device, vocab_size=50000, input_size=30, output_size = 30, pair_am
   token_vocab = vocab(f"data/counts/tokens.txt", vocab_size)
   pairs = []
 
-  lines = readLines(f"data/clean/combined_data_train.json", pair_amount)
+  lines = readLines(f"data/clean/dataset.json", pair_amount)
+
   iter = 0
 
   if pair_amount > len(lines):
@@ -101,7 +102,7 @@ def getInputSizeAverage():
   sum_types  = 0
   sum_values = 0
   sum_tokens = 0
-  lines = readLines('data/clean/combined_data_train.json', -1)
+  lines = readLines('data/clean/dataset.json', -1)
 
   for line in lines:
     try:

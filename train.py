@@ -7,6 +7,7 @@ from lib.vocab import END_TOKEN, START_TOKEN
 from lib.generic import *
 from lib.load_data import batchPair, load_data
 from lib.models import EncoderRNN, AttnDecoderRNN
+from lib.load_setup import *
 
 # pytorch
 import torch
@@ -27,8 +28,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-SETUP_FILE = "setup/test/data.json"
-SETUP = loadTrainData(SETUP_FILE)
+SETUP_FOLDER = "setup/test"
+SETUP, DATA = load_setup(SETUP_FOLDER)
 
 print(Fore.MAGENTA + f"Loaded data from previous training session:{Fore.RESET} {SETUP['epoch']} epochs trained")
 
@@ -246,11 +247,11 @@ START_EPOCH =  SETUP["epoch"]
 flat = SETUP["flat"]
 prec_loss = SETUP["prec_loss"]
 
-iter_losses = SETUP["iter_losses"]
-train_losses = SETUP["train_losses"]
-eval_losses = SETUP["eval_losses"]
-train_perplexity = SETUP["train_perplexity"]
-eval_perplexity = SETUP["eval_perplexity"]
+iter_losses = DATA["iter_losses"]
+train_losses = DATA["train_losses"]
+eval_losses = DATA["eval_losses"]
+train_perplexity = DATA["train_perplexity"]
+eval_perplexity = DATA["eval_perplexity"]
 
 model_path = SETUP["model_path"]
 result_path = SETUP["result_path"]
@@ -354,7 +355,7 @@ for epoch in range(START_EPOCH, EPOCHS+1):
   torch.save(encoder, encoder_path)
   torch.save(decoder, decoder_path)
 
-  saveTrainData(SETUP_FILE, 
+  save_setup(SETUP_FOLDER, 
     epoch=epoch,
     iter_losses=iter_losses,
     train_losses=train_losses,

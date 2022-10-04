@@ -22,26 +22,6 @@ def readLines(filename, size=10):
         break
     return l
 
-
-def loadTrainData(path):
-  return json.load(open(path, "r"))
-  
-def saveTrainData(file, epoch, iter_losses, train_losses, eval_losses, train_perplexity, eval_perplexity, prec_loss, flat):
-  data = loadTrainData(file)
-
-  data["epoch"] = epoch
-  data["iter_losses"] = iter_losses
-  data["train_losses"] = train_losses
-  data["eval_losses"] = eval_losses
-  data["train_perplexity"] = train_perplexity
-  data["eval_perplexity"] = eval_perplexity
-  data["prec_loss"] = prec_loss
-  data["flat"] = flat
-
-  with open(file, "w") as f:
-    f.write(json.dumps(data))
-
-
 def asMinutes(s):
   m = math.floor(s / 60)
   s -= m * 60

@@ -107,7 +107,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   return loss, perplexity
 
 
-def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.15):
+def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.001):
   plot_losses = []
   plot_loss_total = 0  # Reset every plot_every
   loss_total = 0
@@ -120,8 +120,8 @@ def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.15):
 
   plot_every = max(int(epoch_len / plot_times), 1)
 
-  encoder_optimizer = optim.Adagrad(encoder.parameters(), lr=learning_rate)
-  decoder_optimizer = optim.Adagrad(decoder.parameters(), lr=learning_rate)
+  encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
+  decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
   criterion = nn.NLLLoss()
 
   for iter in tqdm(range(1, epoch_len+1), desc="Training: "):

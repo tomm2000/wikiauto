@@ -1,6 +1,6 @@
 from __future__ import unicode_literals, print_function, division
 from lib.vocab import vocab, END_TOKEN, START_TOKEN, PADDING_TOKEN, UNKNOWN_TOKEN
-from lib.generic import readLines
+from lib.generic import foreach_line, readLines
 import json
 import torch
 from tqdm import tqdm
@@ -33,7 +33,7 @@ def load_data(device, vocab_size=50000, input_size=30, output_size = 30, pair_am
     pair_amount = len(lines)
     print("too many pairs requested, new pair amount: ", pair_amount)
   else:
-    print(f"selected {pair_amount} pairs out of {len(lines)} available")
+    print(f"selected {pair_amount} pairs")
   print("------------------------")
 
   for line in tqdm(lines, desc="loading data: "):
@@ -104,26 +104,24 @@ def batchPair(pairs, iter, batch_size):
 def getInputSizeAverage():
   count = 0
   sum_types  = 0
-  sum_values = 0
   sum_tokens = 0
-  lines = readLines('data/clean/dataset.json', -1)
+  max_types = 0
+  max_tokens = 0
 
-  for line in lines:
-    try:
-      json_line = json.loads("{" + line + "}")
-    except:
-      continue
+  with open('data/clean/dataset.json', 'r', encoding='utf-8') as some_file:
+    for line in tqdm(some_file, desc="counting input size: "):
+      line = line.lower()
+      json_line = json.loads(line)
 
-  for article_name in json_line:  # there is only 1 key per article, the name
-    sum_types  += len(json_line[article_name]["types"])
-    sum_values += len(json_line[article_name]["values"])
-    sum_tokens += len(json_line[article_name]["tokens"])
-    count += 1
+      sum_types  += len(json_line["types"])
+      sum_tokens += len(json_line["tokens"])
+      max_types = max(max_types, len(json_line["types"]))
+      max_tokens = max(max_tokens, len(json_line["tokens"]))
+      count += 1
 
   avg_types  = sum_types  / count
-  avg_values = sum_values / count
   avg_tokens = sum_tokens / count
 
-  return avg_types, avg_values, avg_tokens
+  return avg_types, avg_tokens, max_types, max_tokens
 
 

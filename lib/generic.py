@@ -22,6 +22,15 @@ def readLines(filename, size=10):
         break
     return l
 
+def foreach_line(filename, func, size=-1):
+  with open(filename, 'r', encoding='utf-8') as some_file:
+    i = 0
+    for line in some_file:
+      func(line, i)
+      i += 1
+      if i >= size and size > 0:
+        break
+
 def asMinutes(s):
   m = math.floor(s / 60)
   s -= m * 60

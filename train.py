@@ -5,7 +5,7 @@ from lib.beam_search import beam_search
 # other files
 from lib.vocab import END_TOKEN, START_TOKEN
 from lib.generic import *
-from lib.load_data import batchPair, load_data
+from lib.load_data import batchPair, getInputSizeAverage, load_data
 from lib.models import EncoderRNN, AttnDecoderRNN
 from lib.load_setup import *
 
@@ -91,6 +91,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
 
   loss = loss / target_length
   perplexity = torch.exp(loss)
+  
   loss.backward()
 
   # Clip gradient
@@ -100,7 +101,10 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   nn.utils.clip_grad_norm_(decoder.parameters(), max_norm=5.0)
   decoder_optimizer.step()
 
-  return loss.item(), perplexity.item()
+  loss = loss.item()
+  perplexity = perplexity.item()
+
+  return loss, perplexity
 
 
 def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.15):
@@ -152,18 +156,6 @@ def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
   loss = 0
 
   encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
-
-  # out = beam_search(
-  #   decoder=decoder,
-  #   beam_size=BATCH_SIZE,
-  #   seq_len=DECODER_OUTPUT_SIZE,
-  #   encoder_outputs=encoder_outputs,
-  #   encoder_hidden=encoder_hidden,
-  #   encoder_input_size=ENCODER_INPUT_SIZE,
-  #   end_id=token_vocab.getID(END_TOKEN),
-  #   start_id=token_vocab.getID(START_TOKEN),
-  #   device=device,
-  # )
 
   decoder_input = torch.tensor([type_vocab.getID(START_TOKEN) for _ in range(BATCH_SIZE)], device=device)
   decoder_hidden = encoder_hidden
@@ -220,6 +212,35 @@ def evaluateEpoch(encoder, decoder, inputs):
   perplexity_avg = tot_perplexity / epoch_len
 
   return loss_avg, perplexity_avg, sample_start, sample_end
+
+def test(encoder, decoder, inputs, test_amount):
+  outputs = []
+
+  for i in range(test_amount):
+    training_pair = batchPair(inputs, i, BATCH_SIZE)
+    # training_pair = inputs[iter-1]
+    input_tensor = training_pair[0]
+    target_tensor = training_pair[1]
+
+    encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
+
+    encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
+
+    out = beam_search(
+      decoder=decoder,
+      beam_size=BATCH_SIZE,
+      seq_len=DECODER_OUTPUT_SIZE,
+      encoder_outputs=encoder_outputs,
+      encoder_hidden=encoder_hidden,
+      encoder_input_size=ENCODER_INPUT_SIZE,
+      end_id=token_vocab.getID(END_TOKEN),
+      start_id=token_vocab.getID(START_TOKEN),
+      device=device,
+    )
+
+    outputs.append((out, target_tensor))
+
+  return outputs
 
 
 # ----============= MODEL LOADING =============----
@@ -283,6 +304,8 @@ PLOT_TIMES = 200
 BATCH_PRINT_SIZE = 4
 OUTPUT_EVERY = 1
 
+with open(f"{result_path}/beam_out.txt", 'w', encoding='utf-8') as outfile: pass
+
 def saveOutput(sample, epoch, extra = ""): #sample = (loss, decoder_outputs, target_tensor)
   loss = sample[0]
   decoder_outputs = torch.stack(sample[1]).view(BATCH_SIZE, -1) # [BATCH, SEQ_LEN]
@@ -326,6 +349,10 @@ for epoch in range(START_EPOCH, EPOCHS+1):
   eval_losses.append(loss_avg)
   eval_perplexity.append(perplexity_avg)
 
+  #- test
+  test_outputs = test(encoder, decoder, test_split, 1)
+
+  #- loss
   iter_losses += plot_losses
   curr_loss = loss_avg
 
@@ -356,6 +383,10 @@ for epoch in range(START_EPOCH, EPOCHS+1):
     prec_loss=prec_loss,
     flat=flat,
   )
+
+  with open(f"{result_path}/beam_out.txt", 'a', encoding='utf-8') as outfile:
+    outfile.write(f"\n================ Epoch: {epoch} ================\n")
+    outfile.write(token_vocab.batchToSentence(test_outputs[0][0]))
 
   if epoch % OUTPUT_EVERY == 0: saveOutput(sample_end, epoch, "end")
 

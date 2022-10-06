@@ -58,7 +58,7 @@ class AttnCalc(nn.Module):
 
     self.decoderAttnLinear = nn.Linear(hidden_size, hidden_size)
 
-    self.attnLin = nn.Linear(hidden_size, hidden_size)
+    # self.attnLin = nn.Linear(hidden_size, hidden_size)
 
     self.cvgConv = nn.Conv2d(encoder_input_size, encoder_input_size, (1, hidden_size), stride=1, padding="same")
 
@@ -71,12 +71,13 @@ class AttnCalc(nn.Module):
     # encoder_outputs = [BATCH_SIZE, ENCODER_INPUT_SIZE, HIDDEN]
     # coverage = [BATCH, ENCODER_INPUT_SIZE]
 
-    encoder_features = []
-    for i in range(self.encoder_input_size):
-      tmp_feature_i = self.attnLin(encoder_outputs[:, i, :]) # [BATCH, HIDDEN]
-      encoder_features.append(tmp_feature_i)
+    # encoder_features = []
+    # for i in range(self.encoder_input_size):
+    #   tmp_feature_i = self.attnLin(encoder_outputs[:, i, :]) # [BATCH, HIDDEN]
+    #   encoder_features.append(tmp_feature_i)
 
-    encoder_features = torch.stack(encoder_features, dim=1) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
+    # encoder_features = torch.stack(encoder_features, dim=1) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
+    encoder_features = encoder_outputs
 
     decoder_features = self.decoderAttnLinear(hidden) # [1, BATCH, HIDDEN]
     decoder_features = decoder_features.view(self.batch_size, 1, self.hidden_size) #- [BATCH, 1, HIDDEN]

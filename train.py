@@ -396,15 +396,3 @@ for epoch in range(START_EPOCH, EPOCHS+1):
   
   # - early stopping
   if(flat == 0): break
-
-
-#  TODO:
-#- dropout percentuale
-
-#- togliere dropout nel test piccolo
-#- se funziona tutto attention weights padding
-
-#- cambiare i batch ad ogni epoch
-
-# NOTE: da chiedere
-# detach

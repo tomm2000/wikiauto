@@ -5,16 +5,18 @@ import json
 import torch
 from tqdm import tqdm
 
-def prepare_line(table, vocab, phrase_size, apply_end_tnk=False, end_token=END_TOKEN):
+def encode_line(table, vocab, phrase_size, apply_end_tnk=False):
   table = table[0:phrase_size]
 
   while len(table) < phrase_size:
-    table.append(vocab.getID(PADDING_TOKEN))
+    table.append(PADDING_TOKEN)
+    
+
+  if apply_end_tnk:
+    table[phrase_size - 1] = END_TOKEN
 
   table = [vocab.getID(el) for el in table]
 
-  if apply_end_tnk:
-    table[phrase_size - 1] = vocab.getID(end_token)
 
   return table
 
@@ -41,13 +43,13 @@ def load_data(device, vocab_size=50000, input_size=30, output_size = 30, pair_am
 
     article_data = [
       # types:
-      prepare_line(json_line["types"], type_vocab, input_size),
+      encode_line(json_line["types"], type_vocab, input_size),
       # values:
-      prepare_line(json_line["values"], value_vocab, input_size),
+      encode_line(json_line["values"], value_vocab, input_size),
       # positions:
       [i for i in range(input_size)],
       # tokens (target):
-      prepare_line(json_line["tokens"], token_vocab, output_size, True)
+      encode_line(json_line["tokens"], token_vocab, output_size, True)
     ]
 
     pairs.append(article_data)

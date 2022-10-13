@@ -70,13 +70,6 @@ class AttnCalc(nn.Module):
     # hidden = [1, BATCH, HIDDEN]
     # encoder_outputs = [BATCH_SIZE, ENCODER_INPUT_SIZE, HIDDEN]
     # coverage = [BATCH, ENCODER_INPUT_SIZE]
-
-    # encoder_features = []
-    # for i in range(self.encoder_input_size):
-    #   tmp_feature_i = self.attnLin(encoder_outputs[:, i, :]) # [BATCH, HIDDEN]
-    #   encoder_features.append(tmp_feature_i)
-
-    # encoder_features = torch.stack(encoder_features, dim=1) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
     encoder_features = encoder_outputs
 
     decoder_features = self.decoderAttnLinear(hidden) # [1, BATCH, HIDDEN]

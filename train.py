@@ -3,7 +3,7 @@ from __future__ import unicode_literals, print_function, division
 from lib.beam_search import beam_search
 
 # other files
-from lib.vocab import END_TOKEN, START_TOKEN
+from lib.vocab import END_TOKEN, PADDING_TOKEN, START_TOKEN
 from lib.generic import *
 from lib.load_data import batchPair, getInputSizeAverage, load_data
 from lib.models import EncoderRNN, AttnDecoderRNN
@@ -84,6 +84,8 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
       decoder_output, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
       topv, topi = decoder_output.topk(1)
       decoder_input = topi.squeeze()
+
+    mask = [0 if token_vocab.getID(PADDING_TOKEN) == decoder_input[i] else 1 for i in range(BATCH_SIZE)]
 
     newloss = criterion(decoder_output, target_tensor[:, di])
 

@@ -34,7 +34,7 @@ class Hypothesis(object):
     return self._tokens
 
 
-def beam_search(decoder, beam_size, seq_len, encoder_outputs, encoder_hidden, encoder_input_size, end_id, start_id, device):
+def beam_search(decoder, beam_size, seq_len, encoder_outputs, attn_mask, encoder_hidden, encoder_input_size, end_id, start_id, device):
   # beam_size: inizializzato a batch size
   # encoder_input_size: quanti input ha l'encoder
   # end_id: id del token di fine frase
@@ -62,7 +62,7 @@ def beam_search(decoder, beam_size, seq_len, encoder_outputs, encoder_hidden, en
 
     inputs = torch.tensor(tokens, dtype=torch.long, device=device) # [BEAM_SIZE]
 
-    all_probs, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, inputs, decoder_hidden, coverage, context_vector)
+    all_probs, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, inputs, attn_mask, decoder_hidden, coverage, context_vector)
 
     probs = all_probs.data.cpu().numpy() # [BEAM_SIZE, VOCAB_SIZE]
     

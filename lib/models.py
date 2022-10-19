@@ -58,7 +58,7 @@ class AttnCalc(nn.Module):
 
     self.decoderAttnLinear = nn.Linear(hidden_size, hidden_size)
 
-    # self.attnLin = nn.Linear(hidden_size, hidden_size)
+    self.attnLin = nn.Linear(hidden_size, hidden_size)
 
     self.cvgConv = nn.Conv2d(encoder_input_size, encoder_input_size, (1, hidden_size), stride=1, padding="same")
 
@@ -66,11 +66,17 @@ class AttnCalc(nn.Module):
 
     self.tanhfeatures = nn.Tanh()
 
-  def forward(self, hidden, encoder_outputs, coverage):
+  def forward(self, hidden, encoder_outputs, coverage, attn_mask):
     # hidden = [1, BATCH, HIDDEN]
     # encoder_outputs = [BATCH_SIZE, ENCODER_INPUT_SIZE, HIDDEN]
     # coverage = [BATCH, ENCODER_INPUT_SIZE]
-    encoder_features = encoder_outputs
+
+    encoder_features = []
+    for i in range(self.encoder_input_size):
+      tmp_feature_i = self.attnLin(encoder_outputs[:, i, :]) # [BATCH, HIDDEN]
+      encoder_features.append(tmp_feature_i)
+
+    encoder_features = torch.stack(encoder_features, dim=1) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
 
     decoder_features = self.decoderAttnLinear(hidden) # [1, BATCH, HIDDEN]
     decoder_features = decoder_features.view(self.batch_size, 1, self.hidden_size) #- [BATCH, 1, HIDDEN]
@@ -85,14 +91,13 @@ class AttnCalc(nn.Module):
 
     temp_v = self.v.unsqueeze(2) #- [BATCH, HIDDEN, 1]
 
-    attn_weights = torch.bmm(attn_features, temp_v) # [BATCH, ENCODER_INPUT_SIZE, 1]
-    
-    attn_weights = F.softmax(attn_weights.squeeze(2), dim=1) #- [BATCH, ENCODER_INPUT_SIZE]
+    attn_weights = torch.bmm(attn_features, temp_v).squeeze(2) # [BATCH, ENCODER_INPUT_SIZE]
+    attn_weights = torch.where(attn_mask == 1, attn_weights, -torch.inf) # [BATCH, ENCODER_INPUT_SIZE]
+    attn_weights = F.softmax(attn_weights, dim=1) #- [BATCH, ENCODER_INPUT_SIZE]
 
     coverage += attn_weights # [BATCH, ENCODER_INPUT_SIZE]
 
     context_vector = attn_weights.view(self.batch_size, self.encoder_input_size, 1) * encoder_outputs # [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
-
     context_vector = torch.sum(context_vector, dim=1) # [BATCH, HIDDEN]
 
     return context_vector, attn_weights, coverage
@@ -121,7 +126,7 @@ class AttnDecoderRNN(nn.Module):
 
     self.tanhout = nn.Tanh()
 
-  def forward(self, encoder_outputs, input, hidden, coverage, context_vector=None):
+  def forward(self, encoder_outputs, input, attn_mask, hidden, coverage, context_vector=None):
     embedded = self.embedding(input).view(self.batch_size, -1) # [BATCH, EMBEDDING]
     embedded = self.dropout(embedded) # [BATCH, EMBEDDING]  #NOTE questo è da usare
 
@@ -131,7 +136,7 @@ class AttnDecoderRNN(nn.Module):
     # input= [BATCH, EMBEDDING + HIDDEN]
 
     if context_vector is None:
-      context_vector, _, _ = self.calcAttn(hidden, encoder_outputs, coverage)
+      context_vector, _, _ = self.calcAttn(hidden, encoder_outputs, coverage, attn_mask)
     #context_vector = [BATCH, HIDDEN]
     
     new_input = self.newIn(torch.cat((embedded, context_vector), 1)).view(1, self.batch_size, -1) #- [1, BATCH, HIDDEN]
@@ -139,14 +144,14 @@ class AttnDecoderRNN(nn.Module):
     output, hidden = self.gru(new_input, hidden) # [1, BATCH, HIDDEN]
     output = output.squeeze(0) #- [BATCH, HIDDEN]
 
-    context_vector, attn_weights, coverage = self.calcAttn(hidden, encoder_outputs, coverage)
+    context_vector, attn_weights, coverage = self.calcAttn(hidden, encoder_outputs, coverage, attn_mask)
     #- coverage -> [BATCH, ENCODER_INPUT_SIZE]
     #- context_vector -> [BATCH, HIDDEN]
     #- attn_weights -> [BATCH, ENCODER_INPUT_SIZE]
 
     output = torch.cat((output, context_vector), 1) # [BATCH, HIDDEN * 2]
     output = self.preOut(output) # [BATCH, HIDDEN]
-    output = self.tanhout(output) #- [BATCH, HIDDEN]
+    # output = self.tanhout(output) #- [BATCH, HIDDEN]
 
     # output = self.dropout2(output) 0.5
 

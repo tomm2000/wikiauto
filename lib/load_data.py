@@ -94,15 +94,20 @@ def load_data(device, vocab_size=50000, input_size=30, output_size = 30, pair_am
   return type_vocab, value_vocab, token_vocab, train_split, eval_split, test_split
 
 def batchPair(pairs, iter, batch_size):
+  offset = iter * batch_size
+
   inputs = (
-    torch.stack([pairs[0][i] for i in range(iter, iter + batch_size)]),
-    torch.stack([pairs[1][i] for i in range(iter, iter + batch_size)]),
-    torch.stack([pairs[2][i] for i in range(iter, iter + batch_size)])
+    torch.stack([pairs[0][i] for i in range(offset, offset + batch_size)]),
+    torch.stack([pairs[1][i] for i in range(offset, offset + batch_size)]),
+    torch.stack([pairs[2][i] for i in range(offset, offset + batch_size)])
   )
 
-  target = torch.stack([pairs[3][i] for i in range(iter, iter + batch_size)])
+  target = torch.stack([pairs[3][i] for i in range(offset, offset + batch_size)])
 
-  return inputs, target
+  #FIXME: vocab al posto di 1
+  attn_mask = torch.where(inputs[0] == 1, 0, 1)
+
+  return inputs, target, attn_mask
 
 
 def getInputSizeAverage():

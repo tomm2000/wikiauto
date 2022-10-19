@@ -1,15 +1,15 @@
 {
-  "pairs": 1000000,
+  "pairs": 10000000,
   "epoch" : 0,
   "model_path" : "D:/path/to/model/folder",
   "result_path": "C:/path/to/results/folder",
-  "batch_size" : 64,
-  "encoder_input_size": 48,
-  "decoder_output_size": 96,
+  "batch_size" : 16,
+  "encoder_input_size": 20,
+  "decoder_output_size": 30,
   "hidden_size": 256,
   "embedding_size": 128,
   "vocab_size": 50000,
   "prec_loss": 0,
   "flat": 5,
-  "teacher_forcing_ratio": 0.5
+  "teacher_forcing_ratio": 1.0
 }

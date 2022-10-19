@@ -28,7 +28,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-SETUP_FOLDER = "setup/main"
+SETUP_FOLDER = "setup/test"
 SETUP, DATA = load_setup(SETUP_FOLDER)
 
 print(Fore.MAGENTA + f"Loaded data from previous training session:{Fore.RESET} {SETUP['epoch']} epochs trained")
@@ -55,7 +55,7 @@ type_vocab, value_vocab, token_vocab, train_split, eval_split, test_split = load
 
 # ----============= TRAINING/EVALUATION FUNCTIONS =============----
 
-def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
+def train(input_tensor, target_tensor, attn_mask, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
   encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
 
   encoder_optimizer.zero_grad(set_to_none=True)
@@ -74,20 +74,18 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
   context_vector = None
 
   for di in range(target_length):
-    use_teacher_forcing = True if random.random() < TEACHER_FORCIING_RATIO else False
+    use_teacher_forcing = True if random.random() <= TEACHER_FORCIING_RATIO else False
 
     if use_teacher_forcing: # Teacher forcing: Feed the target as the next input
-      decoder_output, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
+      decoder_output, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, decoder_input, attn_mask, decoder_hidden, coverage, context_vector)
       decoder_input = target_tensor[:, di]
         
     else: # Without teacher forcing: use its own predictions as the next input
-      decoder_output, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
+      decoder_output, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, decoder_input, attn_mask, decoder_hidden, coverage, context_vector)
       topv, topi = decoder_output.topk(1)
       decoder_input = topi.squeeze()
 
-    mask = [0 if token_vocab.getID(PADDING_TOKEN) == decoder_input[i] else 1 for i in range(BATCH_SIZE)]
-
-    newloss = criterion(decoder_output, target_tensor[:, di]) * mask
+    newloss = criterion(decoder_output, target_tensor[:, di])
 
     loss += newloss
 
@@ -125,15 +123,19 @@ def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.001):
   encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
   decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
 
+  encoder.train()
+  decoder.train()
+
   criterion = nn.NLLLoss()
+  criterion.ignore_index = type_vocab.getID(PADDING_TOKEN)
 
   for iter in tqdm(range(1, epoch_len+1), desc="Training: "):
     # ogni elemento di inputs è una tupla (input, target)
     # ogni valore input è un tensore di dimensione [3, batch, encoder_input_size], deve 3 rappresenta (tipo, valore, posizione)
     # ogni valore target è un tensore di dimensione [batch, decoder_output_size]
 
-    input, target = batchPair(inputs, iter-1, BATCH_SIZE) # (input, target)
-    loss, perplexity = train(input, target, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+    input_tensor, target_tensor, attn_mask = batchPair(inputs, iter-1, BATCH_SIZE)
+    loss, perplexity = train(input_tensor, target_tensor, attn_mask, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
 
     plot_loss_total += loss
     loss_total += loss
@@ -151,7 +153,7 @@ def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.001):
   return loss_avg, perplexity_avg, plot_losses
 
 
-def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
+def evaluate(input_tensor, target_tensor, attn_mask, encoder, decoder, criterion):
 
   encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
   target_length = target_tensor.size(1)
@@ -169,13 +171,12 @@ def evaluate(input_tensor, target_tensor, encoder, decoder, criterion):
   decoder_outputs = []
 
   for di in range(target_length):
-    decoder_output, decoder_hidden, context_vector, attn_weights, coverage = decoder(encoder_outputs, decoder_input, decoder_hidden, coverage, context_vector)
+    decoder_output, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, decoder_input, attn_mask, decoder_hidden, coverage, context_vector)
     topv, topi = decoder_output.topk(1)
     decoder_outputs.append(topi.squeeze())
     decoder_input = topi.squeeze()
 
-    newloss = criterion(decoder_output,  target_tensor[:, di])
-    loss += newloss
+    loss += criterion(decoder_output, target_tensor[:, di])
 
 
   loss = (loss / target_length)
@@ -189,6 +190,10 @@ def evaluateEpoch(encoder, decoder, inputs):
   epoch_len = math.floor(inputs[0].size(0) / BATCH_SIZE)
 
   criterion = nn.NLLLoss()
+  criterion.ignore_index = type_vocab.getID(PADDING_TOKEN)
+
+  encoder.eval()
+  decoder.eval()
 
   sample_start = None
   sample_end = None
@@ -196,12 +201,9 @@ def evaluateEpoch(encoder, decoder, inputs):
   tot_perplexity = 0
 
   for iter in range(1, epoch_len+1):
-    training_pair = batchPair(inputs, iter-1, BATCH_SIZE)
-    # training_pair = inputs[iter-1]
-    input_tensor = training_pair[0]
-    target_tensor = training_pair[1]
+    input_tensor, target_tensor, attn_mask = batchPair(inputs, iter-1, BATCH_SIZE)
 
-    loss, perplexity, decoder_outputs = evaluate(input_tensor, target_tensor, encoder, decoder, criterion)
+    loss, perplexity, decoder_outputs = evaluate(input_tensor, target_tensor, attn_mask, encoder, decoder, criterion)
     tot_loss += loss
     tot_perplexity += perplexity
 
@@ -218,12 +220,12 @@ def evaluateEpoch(encoder, decoder, inputs):
 
 def test(encoder, decoder, inputs, test_amount):
   outputs = []
+  
+  encoder.eval()
+  decoder.eval()
 
   for i in range(test_amount):
-    training_pair = batchPair(inputs, i, BATCH_SIZE)
-    # training_pair = inputs[iter-1]
-    input_tensor = training_pair[0]
-    target_tensor = training_pair[1]
+    input_tensor, target_tensor, attn_mask = batchPair(inputs, i, BATCH_SIZE)
 
     encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
 
@@ -234,6 +236,7 @@ def test(encoder, decoder, inputs, test_amount):
       beam_size=BATCH_SIZE,
       seq_len=DECODER_OUTPUT_SIZE,
       encoder_outputs=encoder_outputs,
+      attn_mask=attn_mask,
       encoder_hidden=encoder_hidden,
       encoder_input_size=ENCODER_INPUT_SIZE,
       end_id=token_vocab.getID(END_TOKEN),

@@ -9,6 +9,7 @@ def encode_line(table, vocab, phrase_size, apply_end_tnk=False):
   table = table[0:phrase_size]
 
   if apply_end_tnk:
+    
     if len(table) < phrase_size: # if the table is smaller than the phrase size, append the end token
       table.append(END_TOKEN)
     else: # if the table is bigger than the phrase size, replace the last token with the end token

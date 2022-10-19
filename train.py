@@ -87,7 +87,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
 
     mask = [0 if token_vocab.getID(PADDING_TOKEN) == decoder_input[i] else 1 for i in range(BATCH_SIZE)]
 
-    newloss = criterion(decoder_output, target_tensor[:, di])
+    newloss = criterion(decoder_output, target_tensor[:, di]) * mask
 
     loss += newloss
 
@@ -124,6 +124,7 @@ def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.001):
 
   encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
   decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
+
   criterion = nn.NLLLoss()
 
   for iter in tqdm(range(1, epoch_len+1), desc="Training: "):

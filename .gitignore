@@ -1,0 +1,14 @@
+data
+output
+# models
+# saved_models
+*.pt
+plots/*
+__pycache__
+*.bkp
+.vscode
+*.csv
+*.txt
+*.png
+*.zip
+*.lnk

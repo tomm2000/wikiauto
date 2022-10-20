@@ -1,0 +1,15 @@
+{
+  "articles": 10000,
+  "data_folder": "C:/Users/tomma/PROGRAMMING_C/PYTORCH/wikiauto4/data/",
+  "results_folder": "C:/Users/tomma/PROGRAMMING_C/PYTORCH/wikiauto4/results/test4/",
+  "model_folder": "D:/programming/pytorch/wikiauto/models/test4/",
+  "batch_size" : 16,
+  "input_size": 20,
+  "output_size": 30,
+  "hidden_size": 256,
+  "embedding_size": 128,
+  "vocab_size": 50000,
+  "flat": 5,
+  "teacher_forcing_ratio": 0.5,
+  "learning_rate": 0.001
+}

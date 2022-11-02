@@ -1,0 +1,15 @@
+{
+  "pairs": 10000000,
+  "epoch": 250,
+  "model_path": "D:/programming/pytorch/wikiauto/models/maintest3",
+  "result_path": "D:/tommaso_tesi/results",
+  "batch_size": 16,
+  "encoder_input_size": 20,
+  "decoder_output_size": 30,
+  "hidden_size": 256,
+  "embedding_size": 128,
+  "vocab_size": 50000,
+  "prec_loss": 7.016154586665973,
+  "flat": 5,
+  "teacher_forcing_ratio": 1.0
+}

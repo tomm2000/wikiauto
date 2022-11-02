@@ -34,27 +34,31 @@ class Hypothesis(object):
     return self._tokens
 
 
-def beam_search(decoder, beam_size, seq_len, encoder_outputs, attn_mask, encoder_hidden, encoder_input_size, end_id, start_id, device):
+def beam_search(decoder, batch_size, beam_size, seq_len, encoder_outputs, attn_mask, encoder_hidden, encoder_input_size, end_id, start_id, device):
   # beam_size: inizializzato a batch size
   # encoder_input_size: quanti input ha l'encoder
   # end_id: id del token di fine frase
   # start_id: id del token di inizio frase
   MIN_SEQ_LEN = 35
 
-  hyps = np.array([Hypothesis([start_id], [0.0]) for _ in range(beam_size)])  # [BEAM_SIZE]
+  hyps = np.array([Hypothesis([start_id], [0.0]) for _ in range(batch_size)])  # [BEAM_SIZE]
 
   step = 0
   results = []
-  data = np.zeros((beam_size, seq_len)) # [BEAM_SIZE, SEQ_LEN]
 
   decoder_hidden = encoder_hidden
-  coverage = torch.zeros(beam_size, encoder_input_size, device=device)
+  coverage = torch.zeros(batch_size, encoder_input_size, device=device)
   context_vector = None
 
 
   while step < seq_len and len(results) < beam_size:
+
     # prepariamo l'input per la rete neurale
     tokens = np.array([h.last_token for h in hyps]) # [BEAM_SIZE]
+  
+    # fill tokens up to batch size length
+    if len(tokens) < batch_size:
+      tokens = np.pad(tokens, (0, batch_size - len(tokens)), 'constant', constant_values=end_id)
 
     tokens = np.transpose(tokens) # [BEAM_SIZE]
 

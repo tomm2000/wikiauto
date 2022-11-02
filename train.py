@@ -89,6 +89,8 @@ def train(input_tensor, target_tensor, attn_mask, encoder, decoder, encoder_opti
 
     loss += newloss
 
+  loss = torch.sum(loss, dim=0)
+  loss = loss / BATCH_SIZE
   loss = loss / target_length
   perplexity = torch.exp(loss)
   
@@ -126,8 +128,7 @@ def trainEpoch(encoder, decoder, inputs, plot_times=10000, learning_rate=0.001):
   encoder.train()
   decoder.train()
 
-  criterion = nn.NLLLoss()
-  criterion.ignore_index = type_vocab.getID(PADDING_TOKEN)
+  criterion = nn.NLLLoss(reduction="none", ignore_index=type_vocab.getID(PADDING_TOKEN))
 
   for iter in tqdm(range(1, epoch_len+1), desc="Training: "):
     # ogni elemento di inputs è una tupla (input, target)
@@ -178,8 +179,9 @@ def evaluate(input_tensor, target_tensor, attn_mask, encoder, decoder, criterion
 
     loss += criterion(decoder_output, target_tensor[:, di])
 
-
-  loss = (loss / target_length)
+  loss = torch.sum(loss, dim=0)
+  loss = loss / BATCH_SIZE
+  loss = loss / target_length
   perplexity = torch.exp(loss)
 
 
@@ -189,8 +191,7 @@ def evaluate(input_tensor, target_tensor, attn_mask, encoder, decoder, criterion
 def evaluateEpoch(encoder, decoder, inputs):
   epoch_len = math.floor(inputs[0].size(0) / BATCH_SIZE)
 
-  criterion = nn.NLLLoss()
-  criterion.ignore_index = type_vocab.getID(PADDING_TOKEN)
+  criterion = nn.NLLLoss(reduction="none", ignore_index=type_vocab.getID(PADDING_TOKEN))
 
   encoder.eval()
   decoder.eval()
@@ -217,36 +218,6 @@ def evaluateEpoch(encoder, decoder, inputs):
   perplexity_avg = tot_perplexity / epoch_len
 
   return loss_avg, perplexity_avg, sample_start, sample_end
-
-def test(encoder, decoder, inputs, test_amount):
-  outputs = []
-  
-  encoder.eval()
-  decoder.eval()
-
-  for i in range(test_amount):
-    input_tensor, target_tensor, attn_mask = batchPair(inputs, i, BATCH_SIZE)
-
-    encoder_hidden = encoder.initHidden(device, BATCH_SIZE)
-
-    encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden) #- [BATCH, ENCODER_INPUT_SIZE, HIDDEN]
-
-    out = beam_search(
-      decoder=decoder,
-      beam_size=BATCH_SIZE,
-      seq_len=DECODER_OUTPUT_SIZE,
-      encoder_outputs=encoder_outputs,
-      attn_mask=attn_mask,
-      encoder_hidden=encoder_hidden,
-      encoder_input_size=ENCODER_INPUT_SIZE,
-      end_id=token_vocab.getID(END_TOKEN),
-      start_id=token_vocab.getID(START_TOKEN),
-      device=device,
-    )
-
-    outputs.append((out, target_tensor))
-
-  return outputs
 
 
 # ----============= MODEL LOADING =============----
@@ -355,9 +326,6 @@ for epoch in range(START_EPOCH, EPOCHS+1):
   eval_losses.append(loss_avg)
   eval_perplexity.append(perplexity_avg)
 
-  #- test
-  test_outputs = test(encoder, decoder, test_split, 1)
-
   #- loss
   iter_losses += plot_losses
   curr_loss = loss_avg
@@ -389,10 +357,6 @@ for epoch in range(START_EPOCH, EPOCHS+1):
     prec_loss=prec_loss,
     flat=flat,
   )
-
-  with open(f"{result_path}/beam_out.txt", 'a', encoding='utf-8') as outfile:
-    outfile.write(f"\n================ Epoch: {epoch} ================\n")
-    outfile.write(token_vocab.batchToSentence(test_outputs[0][0]))
 
   if epoch % OUTPUT_EVERY == 0: saveOutput(sample_end, epoch, "end")
 

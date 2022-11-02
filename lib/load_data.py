@@ -109,6 +109,20 @@ def batchPair(pairs, iter, batch_size):
 
   return inputs, target, attn_mask
 
+def testBatch(pairs, iter, batch_size):
+  inputs = (
+    torch.stack([pairs[0][iter] for _ in range(batch_size)]),
+    torch.stack([pairs[1][iter] for _ in range(batch_size)]),
+    torch.stack([pairs[2][iter] for _ in range(batch_size)])
+  )
+
+  target = torch.stack([pairs[3][iter] for _ in range(batch_size)])
+
+  #FIXME: vocab al posto di 1
+  attn_mask = torch.where(inputs[0] == 1, 0, 1)
+
+  return inputs, target, attn_mask
+
 
 def getInputSizeAverage():
   count = 0

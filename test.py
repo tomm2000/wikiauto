@@ -22,11 +22,13 @@ import time
 from colorama import Fore
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import os
 
 # ----============= SETUP =============----
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1' # DEBUG
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1' # DEBUG
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
@@ -64,7 +66,6 @@ def testEpoch(encoder, decoder, inputs):
 
   bleu = Bleu(ngram=4, smooth="smooth1")
   rouge = Rouge()
-  # meteor = Meteor()
 
   for i in tqdm(range(test_amount), desc="Testing: "):
     input_tensor, target_tensor, attn_mask = testBatch(inputs, i, BATCH_SIZE)
@@ -92,7 +93,6 @@ def testEpoch(encoder, decoder, inputs):
 
     bleu.update((out, target))
     rouge.update((out, target))
-    # meteor.update([out], [target_tensor])
 
   return bleu.compute(), rouge.compute()
     
@@ -108,6 +108,9 @@ decoder = f"{model_path}/decoder_{START_EPOCH}.pt"
 
 encoder = torch.load(encoder)
 decoder = torch.load(decoder)
+
+encoder.to(device)
+decoder.to(device)
 
 score = testEpoch(encoder, decoder, test_split)
 

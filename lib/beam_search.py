@@ -1,17 +1,22 @@
+import time
 import numpy as np
 import torch
+
+from lib.generic import timelog
 
 # classe per rappresentare un cammino nella beam search
 # NON MODIFICATO
 class Hypothesis(object):
 
-  def __init__(self, tokens, log_probs):
+  def __init__(self, tokens, log_probs, state, coverage):
 
     self._tokens = tokens
     self._log_probs = log_probs
+    self._state = state
+    self._coverage = coverage
 
-  def extend(self, token, log_prob):
-    return Hypothesis(self._tokens+[token], self._log_probs+[log_prob])
+  def extend(self, token, log_prob, state, coverage):
+    return Hypothesis(self._tokens+[token], self._log_probs+[log_prob], state, coverage)
 
   @property
   def last_token(self):
@@ -41,35 +46,34 @@ def beam_search(decoder, batch_size, beam_size, seq_len, encoder_outputs, attn_m
   # start_id: id del token di inizio frase
   MIN_SEQ_LEN = 35
 
-  hyps = np.array([Hypothesis([start_id], [0.0]) for _ in range(batch_size)])  # [BEAM_SIZE]
-
   step = 0
   results = []
 
-  decoder_hidden = encoder_hidden
-  coverage = torch.zeros(batch_size, encoder_input_size, device=device)
-  context_vector = None
+  decoder_hidden = encoder_hidden # [1, BATCH_SIZE, HIDDEN_SIZE]
+  coverage = torch.zeros(batch_size, encoder_input_size, device=device) # [BATCH_SIZE, ENCODER_INPUT_SIZE]
+  context_vector = None # [BATCH_SIZE, HIDDEN_SIZE]
+  
+  hyps = np.array([Hypothesis([start_id], [0.0], decoder_hidden[:, i, :], coverage[i, :]) for i in range(batch_size)])  # [BEAM_SIZE]
 
 
   while step < seq_len and len(results) < beam_size:
-
     # prepariamo l'input per la rete neurale
-    tokens = np.array([h.last_token for h in hyps]) # [BEAM_SIZE]
-  
+    tokens = torch.tensor([h.last_token for h in hyps], device=device) # [BEAM_SIZE]
+
     # fill tokens up to batch size length
     if len(tokens) < batch_size:
-      tokens = np.pad(tokens, (0, batch_size - len(tokens)), 'constant', constant_values=end_id)
+      tokens = torch.cat((tokens, torch.tensor([end_id] * (batch_size - len(tokens)), device=device)))
 
-    tokens = np.transpose(tokens) # [BEAM_SIZE]
+    tokens = tokens.unsqueeze(0) # [1, BEAM_SIZE]
 
     all_hyps = []
 
-    inputs = torch.tensor(tokens, dtype=torch.long, device=device) # [BEAM_SIZE]
+    for i, hyp in enumerate(hyps):
+      decoder_hidden[:, i, :] = hyp._state
+      coverage[i, :] = hyp._coverage
 
-    all_probs, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, inputs, attn_mask, decoder_hidden, coverage, context_vector)
+    probs, decoder_hidden, context_vector, _, coverage = decoder(encoder_outputs, tokens, attn_mask, decoder_hidden, coverage, context_vector)  
 
-    probs = all_probs.data.cpu().numpy() # [BEAM_SIZE, VOCAB_SIZE]
-    
     # per ogni cammino nella beam search
     for i, h in enumerate(hyps):
       # generiamo la distribuzione di probabilita'
@@ -77,14 +81,14 @@ def beam_search(decoder, batch_size, beam_size, seq_len, encoder_outputs, attn_m
       # usate [i,step]. Copiate da model/make_name l'estrazione delle probabilita
       # in questo caso, non serve prendere il character corrente (lo faremo alla fine)
 
-      indexes = probs.argsort()[::-1] # [BEAM_SIZE, VOCAB_SIZE]
+      indexes = probs.topk(beam_size * 2, dim=1)
 
       # scegliamo 2 * beam_size possibili espansioni dei cammini
       for j in range(beam_size*2):
         # aggiungere ad all_hyps l'estensione delle ipotesi
         # con il j-esimo indice e la sua probabilita'
         # usate h.extend() per farlo
-        all_hyps.append(h.extend(indexes[i, j], probs[i, indexes[i, j]]))
+        all_hyps.append(h.extend(indexes[1][i, j], indexes[0][i, j], decoder_hidden[:, i, :], coverage[i, :]))
 
     # teniamo solo beam_size cammini migliori
     hyps = []
@@ -98,12 +102,8 @@ def beam_search(decoder, batch_size, beam_size, seq_len, encoder_outputs, attn_m
       if len(hyps) == beam_size or len(results) == beam_size:
           break
 
-    # aggiorniamo data con i token migliori
-    # if step + 2 < seq_len:
-      # tokens = np.matrix([h.tokens for h in hyps])
-      # data[:, :step+2] = tokens
-
     step += 1
+
 
   if len(results) == 0:
       results = hyps

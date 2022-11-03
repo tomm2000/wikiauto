@@ -99,8 +99,8 @@ def beam_search(decoder, batch_size, beam_size, seq_len, encoder_outputs, attn_m
           break
 
     # aggiorniamo data con i token migliori
-    if step + 2 < seq_len:
-      tokens = np.matrix([h.tokens for h in hyps])
+    # if step + 2 < seq_len:
+      # tokens = np.matrix([h.tokens for h in hyps])
       # data[:, :step+2] = tokens
 
     step += 1

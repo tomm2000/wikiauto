@@ -1,0 +1,15 @@
+{
+  "pairs": 10000000,
+  "epoch": 177,
+  "model_path": "D:/programming/pytorch/wikiauto/models/adagrad",
+  "result_path": "C:/Users/tomma/PROGRAMMING_C/PYTORCH/wikiauto3/setup/adagrad",
+  "batch_size": 16,
+  "encoder_input_size": 20,
+  "decoder_output_size": 30,
+  "hidden_size": 256,
+  "embedding_size": 128,
+  "vocab_size": 50000,
+  "prec_loss": 7.016154586665973,
+  "flat": 5,
+  "teacher_forcing_ratio": 1.0
+}

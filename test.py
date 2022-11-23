@@ -32,7 +32,7 @@ os.environ['CUDA_LAUNCH_BLOCKING'] = '1' # DEBUG
 
 print(Fore.MAGENTA + f"Using device:{Fore.RESET} '{device}'")
 
-SETUP_FOLDER = "setup/maintest"
+SETUP_FOLDER = "setup/adagrad"
 SETUP, DATA = load_setup(SETUP_FOLDER)
 
 print(Fore.MAGENTA + f"Loaded data from previous training session:{Fore.RESET} {SETUP['epoch']} epochs trained")
@@ -64,8 +64,10 @@ def testEpoch(encoder, decoder, inputs):
 
   test_amount = len(inputs[0])
 
-  bleu = Bleu(ngram=4, smooth="smooth1")
+  bleu = Bleu(ngram=2, smooth="smooth1")
   rouge = Rouge()
+
+  scores = {}
 
   for i in tqdm(range(test_amount), desc="Testing: "):
     input_tensor, target_tensor, attn_mask = testBatch(inputs, i, BATCH_SIZE)
@@ -94,7 +96,22 @@ def testEpoch(encoder, decoder, inputs):
     bleu.update((out, target))
     rouge.update((out, target))
 
-  return bleu.compute(), rouge.compute()
+    if "bleu" not in scores: scores["bleu"] = 0
+    scores["bleu"] += bleu.compute()
+
+    for key, value in rouge.compute().items():
+      if key not in scores: scores[key] = 0
+      scores[key] += value
+
+    if i % 100 == 0:
+      for key, value in scores.items():
+        print(f"{key}: {value / (i + 1)}")
+
+  for key, value in scores.items():
+    scores[key] = value / test_amount
+
+  return scores
+    
     
 # ----============= MODEL LOADING =============----
 print(Fore.MAGENTA + "\n---- Loading model ----" + Fore.RESET)
@@ -114,5 +131,4 @@ decoder.to(device)
 
 score = testEpoch(encoder, decoder, test_split)
 
-print(Fore.MAGENTA + f"BLEU:{Fore.RESET} {score[0]}")
-print(Fore.MAGENTA + f"ROUGE:{Fore.RESET} {score[1]}")
+print(Fore.MAGENTA + f"SCORES:\n{Fore.RESET} {score}")

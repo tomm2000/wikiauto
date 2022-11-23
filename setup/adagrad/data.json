@@ -1,0 +1,7 @@
+{
+  "iter_losses" : [],
+  "train_losses" : [],
+  "eval_losses" : [],
+  "train_perplexities" : [],
+  "eval_perplexities" : []
+}

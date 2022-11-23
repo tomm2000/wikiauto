@@ -81,7 +81,7 @@ def beam_search(decoder, batch_size, beam_size, seq_len, encoder_outputs, attn_m
       # usate [i,step]. Copiate da model/make_name l'estrazione delle probabilita
       # in questo caso, non serve prendere il character corrente (lo faremo alla fine)
 
-      indexes = probs.topk(beam_size * 2, dim=1)
+      indexes = probs.topk(beam_size * 2, sorted=True, dim=1)
 
       # scegliamo 2 * beam_size possibili espansioni dei cammini
       for j in range(beam_size*2):
